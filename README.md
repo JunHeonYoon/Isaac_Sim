@@ -5,8 +5,7 @@ If you code this pkg by vscode, follow the support :
 https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_python.html#isaac-sim-python-vscode
 
 ## Command
-1. Go to Isaac Sim root folder 
-  default :
+1. Go to Isaac Sim root folder (default :)
   ```
   ~/.local/share/ov/pkg/isaac_sim-2022.2.0
   ```
