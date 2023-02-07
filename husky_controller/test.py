@@ -12,7 +12,7 @@ np.set_printoptions(precision=3, suppress=True)
 import pandas as pd
 import math
 import keyboard
-import controller.differential as controller
+import wheelcontroller.differential as diffcontroller
 
 
 file_path = "/home/dyros/Isaac_Sim/husky_controller/trajectory"
@@ -99,23 +99,23 @@ while simulation_app.is_running():
             else:
                 desired_linvel = traj_linvel[index]
                 desired_angvel = traj_angvel[index]
-            desired_joint_vel = controller.DifferentialController(wheel_radius=0.1651,
-                                                          wheel_distance=0.5708,
-                                                          linear_velocity=desired_linvel,
-                                                          angular_velocity=desired_angvel,
-                                                          max_linear_speed=1.0,
-                                                          max_angular_speed=2.0,
-                                                          is_skid=True,
-                                                          wheel_distance_multiplier=1.875)
+            desired_joint_vel = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                      wheel_distance=0.5708,
+                                                                      linear_velocity=desired_linvel,
+                                                                      angular_velocity=desired_angvel,
+                                                                      max_linear_speed=1.0,
+                                                                      max_angular_speed=2.0,
+                                                                      is_skid=True,
+                                                                      wheel_distance_multiplier=1.875)
         elif control_mode == "Rotating":
-            desired_joint_vel = controller.DifferentialController(wheel_radius=0.1651,
-                                                          wheel_distance=0.5708,
-                                                          linear_velocity=0.,
-                                                          angular_velocity=math.pi/6,
-                                                          max_linear_speed=1.0,
-                                                          max_angular_speed=2.0,
-                                                          is_skid=True,
-                                                          wheel_distance_multiplier=1.875)
+            desired_joint_vel = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                      wheel_distance=0.5708,
+                                                                      linear_velocity=0.,
+                                                                      angular_velocity=math.pi/6,
+                                                                      max_linear_speed=1.0,
+                                                                      max_angular_speed=2.0,
+                                                                      is_skid=True,
+                                                                      wheel_distance_multiplier=1.875)
             
         tick = world.current_time_step_index
         position, orientation = husky.get_world_pose()
