@@ -15,7 +15,7 @@ hz = 50
 pkg_path = "/home/dyros/Isaac_Sim/husky_controller"
 world = World(stage_units_in_meters=1.0)
 world.scene.add_default_ground_plane()
-add_reference_to_stage(usd_path=pkg_path+"/model/husky.usd", prim_path="/World/husky")
+add_reference_to_stage(usd_path=pkg_path+"/model/husky(sphere).usd", prim_path="/World/husky")
 world.set_simulation_dt(1/hz, 1/hz) 
 wc = WheelController(hz, world, pkg_path)
 world.reset()

@@ -38,20 +38,15 @@ class WheelController:
         # self.joint_vel_init = np.zeros(4) # Wheel velocity
         self.joint_vel = np.zeros(4)
         self.joint_vel_desired = np.zeros(4)
-        
-        
-    
+         
     def initModel(self)->None:
-        model_path = self.pkg_path + "/model"
         self.husky = self.world.scene.add(Articulation(prim_path="/World/husky", name="husky",))
         
     def initFile(self)->None:
         for i in range(len(self.file_names)):
             file_path = self.pkg_path + "/data/" + self.file_names[i] + ".txt"
             globals()['self.file_'+str(i)] = open(file_path, "w")
-        
-        
-        
+          
     def printState(self)->None:
         if( self.world.current_time_step_index % 50 == 0 ):
             print("----------------------------")
@@ -69,8 +64,7 @@ class WheelController:
     def Quater2Yaw(self, quaternion:np.array)->float:
         yaw = math.atan2(2*(quaternion[0]*quaternion[3] + quaternion[1]*quaternion[2]), 1 - 2*(quaternion[2]**2 + quaternion[3]**2))
         return yaw
-            
-    
+             
     def getTrajData(self, file_name:str)->np.array:
         traj_data = pd.read_table(self.pkg_path+"/trajectory"+file_name, sep=" ", header=None)
         traj_data = traj_data.to_numpy()
@@ -92,11 +86,10 @@ class WheelController:
                 else:
                     th_traj[i] = math.atan2(pose_dot_y_traj[i], pose_dot_x_traj[i])
                     
-        w_traj = (pose_dot_x_traj*a_y_traj - a_x_traj*pose_dot_y_traj) / (pose_dot_x_traj**2 + pose_dot_y_traj**2) # For differential model
-        for i in range(w_traj.shape[0]):
-            if (pose_dot_x_traj[i]**2 + pose_dot_y_traj[i]**2) < 0.001:
-                w_traj[i] = 0
-
+        w_traj = np.zeros(traj_data.shape[0])
+        for i in range(traj_data.shape[0]):
+            if (pose_dot_x_traj[i]**2 + pose_dot_y_traj[i]**2) > 0.001:
+                w_traj[i] = (pose_dot_x_traj[i]*a_y_traj[i] - a_x_traj[i]*pose_dot_y_traj[i]) / (pose_dot_x_traj[i]**2 + pose_dot_y_traj[i]**2) # For differential model
         
         v_x_traj =  pose_dot_x_traj * np.cos(th_traj) + pose_dot_y_traj * np.sin(th_traj)
         v_y_traj = -pose_dot_x_traj * np.sin(th_traj) + pose_dot_y_traj * np.cos(th_traj)
@@ -125,8 +118,7 @@ class WheelController:
                                                                        is_skid=True,
                                                                        wheel_distance_multiplier=1.875)
         self.record(0, traj_data.shape[0]/self.hz)
-            
-
+    
     def UpdateData(self)->None:
         position, orientation = self.husky.get_world_pose()
         self.pose[:2] = position[:2]
@@ -142,20 +134,17 @@ class WheelController:
         
         self.joint_vel = self.husky.get_joint_velocities()
         
-        
     def initPosition(self)->None:
         self.pose_init = self.pose
         self.pose_desired = self.pose_init
         self.v_desired = self.v
         self.joint_vel_desired = self.joint_vel
         
-        
     def setMode(self, mode:str)->None:
         self.is_mode_changed = True
         self.control_mode = mode
         print("Current mode (changed) : "+self.control_mode)
         
-    
     def compute(self)->None:
         if(self.is_mode_changed):
             self.is_mode_changed = False
