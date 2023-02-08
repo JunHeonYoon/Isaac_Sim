@@ -8,7 +8,7 @@ import keyboard
 import time
 import numpy as np
 from armcontroller.controller import ArmController
-from armcontroller.sensor import ContactSensors
+from omni.isaac.core.articulations.articulation_view import ArticulationView
 
 
 hz = 100
@@ -18,14 +18,8 @@ world.scene.add_default_ground_plane()
 add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand.usd", prim_path="/World/panda")
 world.set_simulation_dt(1/hz, 1/hz) 
 ac = ArmController(hz, world, pkg_path)
-contact_sensor_prim_path =  ["/World/panda/panda_leftfinger/contact_sensor", 
-                             "/World/panda/panda_rightfinger/contact_sensor"]
-contact_sensor_translations = np.array([[0., 0., 0.045],
-                                        [0., 0., 0.045]])
-contact = ContactSensors(world=world, 
-                         prim_path=contact_sensor_prim_path, 
-                         translations=contact_sensor_translations,
-                         sensor_radius=0.01)
+ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
+world.scene.add(ft)
 world.reset()
 
 
@@ -36,9 +30,11 @@ is_first = True
 while (simulation_app.is_running() and (not exit_flag)):
     world.step(render=True)
     ac.UpdateData()
+    ac.getFTdata(ft._physics_view.get_force_sensor_forces())
     if(is_first):
         world.reset()
         ac.UpdateData()
+        ac.getFTdata(ft._physics_view.get_force_sensor_forces())
         print("Initial q : " )
         print(ac.getPosition()) 
         is_first = False
@@ -74,6 +70,5 @@ while (simulation_app.is_running() and (not exit_flag)):
         
     if is_simulation_run:
         ac.compute()
-        print(contact.getForce())
         ac.write()
 simulation_app.close()

@@ -36,7 +36,11 @@ kinematic = lula.RobotDescription.kinematics(lula.load_robot(robot_description_f
 
 # define force sensor of each finger
 # right_finger_ft = ArticulationView(prim_paths_expr="/World/panda/panda_rightfinger", enable_dof_force_sensors=True)
-# left_finger_ft = ArticulationView(prim_paths_expr="/World/panda/panda_leftfinger", enable_dof_force_sensors=True)
+ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
+world.scene.add(ft)
+# ft.initialize()
+# if ft.initialized:
+#     print("true")
 
 # set the default positions of the other gripper joints to be opened so
 # that its out of the way of the joints we want to control when gripping an object for instance.
@@ -196,8 +200,8 @@ while simulation_app.is_running():
         
         # print("right_ft")
         # print(right_finger_ft._physics_view.get_force_sensor_forces())
-        # print("left_ft")
-        # print(left_finger_ft._physics_view.get_force_sensor_forces())
+        print("left_ft")
+        print(ft._physics_view.get_force_sensor_forces())
         # print("ft_sensor : ")
         # print(ft_sensor._physics_view)
         

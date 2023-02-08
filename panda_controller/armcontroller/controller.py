@@ -22,9 +22,6 @@ class ArmController:
         self.initDimension()
         self.initModel()
         
-        
-        
-        
     def initDimension(self)->None:
         self.q_init = np.zeros(DOF)
         self.q = np.zeros(DOF)
@@ -41,8 +38,6 @@ class ArmController:
         self.gripper_desired = np.zeros(2)
         self.gripper = np.zeros(2)
         
-        
-    
     def initModel(self)->None:
         model_path = self.pkg_path + "/model"
         self.franka = self.world.scene.add(Franka(prim_path="/World/panda", name="franka_robot",
@@ -60,30 +55,29 @@ class ArmController:
         joints_default_positions[8] = 0.
         self.franka.set_joints_default_state(positions=joints_default_positions)
         
-        
-        
     def printState(self)->None:
         if( self.world.current_time_step_index % 50 == 0 ):
             print("---------------------------------")
             print("Time : ")
             print(round(self.play_time, 2))
-            print("position : ")
+            print("\nposition : ")
             print(self.pose[:3, 3].T)
-            print("orientation : ")
+            print("\norientation : ")
             print(self.pose[:3,:3])
-            print("jacobian")
+            print("\njacobian")
             print(self.j)
+            print("\nfinger position : ")
+            print(self.gripper)
+            print("\nFT data from tips : ")
+            print(self.ft_data)
+            
             print("---------------------------------")
             print("\n\n")
-            
-            
-            
+                
     def moveJointPosition(self, target_q: np.array, duration: float)->None:
         self.q_desired = DyrosMath.cubicVector(self.play_time, self.control_start_time, self.control_start_time+duration, 
                                                self.q_init, target_q, np.zeros(7), np.zeros(7))
                 
-        
-        
     def getTrajData(self, file_name:str)->np.array:
         traj_data = pd.read_table(self.pkg_path+"/trajectory"+file_name, sep=" ", header=None)
         traj_data = traj_data.to_numpy()
@@ -102,8 +96,6 @@ class ArmController:
         traj = np.column_stack((traj, vy_traj))
         traj = np.column_stack((traj, vz_traj))
         return traj
-        
-        
         
     def CLIK(self, target_pose: np.array = None, duration: float = None, traj_data: np.array = None)->None:
         x_desired = np.zeros(3)  # position
@@ -160,30 +152,22 @@ class ArmController:
         self.gripper_desired = DyrosMath.cubicVector(self.play_time, self.control_start_time, self.control_start_time+duration, 
                                                      self.gripper_init, target_position, np.zeros(2), np.zeros(2))
         
-        
-        
-        
     def UpdateData(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
         self.qd = self.franka.get_joint_velocities()[:7]
         self.torque = self.franka.get_applied_joint_efforts()[:7]
         self.gripper = self.franka.gripper.get_joint_positions()
-            
-            
-            
+                 
     def initPosition(self)->None:
         self.q_init = self.q
         self.q_desired = self.q_init
         self.gripper_init = self.gripper
         self.gripper_desired = self.gripper_init
-        
-        
-        
+          
     def setMode(self, mode:str)->None:
         self.is_mode_changed = True
         self.control_mode = mode
         print("Current mode (changed) : "+self.control_mode)
-        
         
     def compute(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
@@ -235,3 +219,5 @@ class ArmController:
     def write(self)->None:
         self.franka.set_joint_positions(positions=np.concatenate((self.q_desired, self.gripper_desired), axis=0))
             
+    def getFTdata(self, ft_data:np.array)->None:
+        self.ft_data = ft_data
