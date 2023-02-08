@@ -15,5 +15,5 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   ```
   
   ```
-  sudo ./python.sh /path_of_this_pkg/husky_controller/test.py
+  sudo ./python.sh /path_of_this_pkg/husky_controller/main.py
   ```
