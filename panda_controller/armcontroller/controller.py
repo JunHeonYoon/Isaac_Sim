@@ -19,8 +19,10 @@ class ArmController:
         self.control_mode = "none"
         self.is_mode_changed = False
         self.pkg_path = pkg_path
+        self.file_names = ["Circle", "Square", "Eight"]
         self.initDimension()
         self.initModel()
+        self.initFile()
         
     def initDimension(self)->None:
         self.q_init = np.zeros(DOF)
@@ -55,6 +57,11 @@ class ArmController:
         joints_default_positions[8] = 0.
         self.franka.set_joints_default_state(positions=joints_default_positions)
         
+    def initFile(self)->None:
+        for i in range(len(self.file_names)):
+            file_path = self.pkg_path + "/data/" + self.file_names[i] + ".txt"
+            globals()['self.file_'+str(i)] = open(file_path, "w")
+    
     def printState(self)->None:
         if( self.world.current_time_step_index % 50 == 0 ):
             print("---------------------------------")
@@ -97,7 +104,7 @@ class ArmController:
         traj = np.column_stack((traj, vz_traj))
         return traj
         
-    def CLIK(self, target_pose: np.array = None, duration: float = None, traj_data: np.array = None)->None:
+    def CLIK(self, target_pose: np.array = None, duration: float = None, traj_data: np.array = None, traj_type: str = None)->None:
         x_desired = np.zeros(3)  # position
         rotation_desired = np.zeros((3,3)) # rotation
         xd_desired = np.zeros(6) # v, w
@@ -148,6 +155,13 @@ class ArmController:
         qd_desired = np.dot(pseudo_j_inv, xd_desired + np.dot(kp, x_error) )
         self.q_desired = self.q_desired + qd_desired/self.hz
         
+        if traj_type == "CLIK Circle":
+            self.record(0, traj_data.shape[0]/self.hz)
+        elif traj_type == "CLIK Square":
+            self.record(1, traj_data.shape[0]/self.hz)
+        elif traj_type == "CLIK Eight":
+            self.record(2, traj_data.shape[0]/self.hz)
+        
     def setGripperPosition(self, target_position:np.array, duration:float)->None:
         self.gripper_desired = DyrosMath.cubicVector(self.play_time, self.control_start_time, self.control_start_time+duration, 
                                                      self.gripper_init, target_position, np.zeros(2), np.zeros(2))
@@ -192,13 +206,12 @@ class ArmController:
             target_gripper = np.zeros(2)
             self.moveJointPosition(target_q, 1)
             self.setGripperPosition(target_gripper, 1)
-        elif(self.control_mode == "CLIK"):
-            # target_pose = np.array([[1,  0,  0, 0.25],
-            #                         [0, -1,  0, 0.28],
-            #                         [0,  0, -1, 0.65],
-            #                         [0,  0,  0, 1]])
-            # self.CLIK(target_pose=target_pose, duration=2.0)
-            self.CLIK(traj_data=self.getTrajData("/eight.txt"))
+        elif(self.control_mode == "CLIK Circle"):
+            self.CLIK(traj_data=self.getTrajData("/circle.txt"), traj_type=self.control_mode)
+        elif(self.control_mode == "CLIK Square"):
+            self.CLIK(traj_data=self.getTrajData("/square.txt"), traj_type=self.control_mode)
+        elif(self.control_mode == "CLIK Eight"):
+            self.CLIK(traj_data=self.getTrajData("/eight.txt"), traj_type=self.control_mode)
         elif(self.control_mode == "gripper_open"):
             target_gripper = np.array([0.04, 0.04])
             self.setGripperPosition(target_gripper, 1)
@@ -221,3 +234,12 @@ class ArmController:
             
     def getFTdata(self, ft_data:np.array)->None:
         self.ft_data = ft_data
+        
+    def record(self, file_name_index:int, duration:float):
+        if self.play_time < self.control_start_time + duration + 1.0:
+            data = str(self.ft_data[0,:]*1000)[1:-1] + " " + str(self.ft_data[1,:]*1000)[1:-1] 
+            globals()["self.file_"+str(file_name_index)].write(data + "\n" )
+            
+    def closeFile(self)->None:
+        for i in range(len(self.file_names)):
+            globals()['self.file_'+str(i)].close()

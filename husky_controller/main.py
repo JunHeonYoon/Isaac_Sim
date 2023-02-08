@@ -41,7 +41,13 @@ while (simulation_app.is_running() and (not exit_flag)):
         wc.setMode("init")
     elif keyboard.is_pressed("1"):
         time.sleep(0.1)
-        wc.setMode("Tracking")
+        wc.setMode("Tracking Circle")
+    elif keyboard.is_pressed("2"):
+        time.sleep(0.1)
+        wc.setMode("Tracking Square")
+    elif keyboard.is_pressed("3"):
+        time.sleep(0.1)
+        wc.setMode("Tracking Eight")
     elif keyboard.is_pressed("p"):
         if is_simulation_run:
             time.sleep(0.1)

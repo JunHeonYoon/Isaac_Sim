@@ -30,11 +30,11 @@ is_first = True
 while (simulation_app.is_running() and (not exit_flag)):
     world.step(render=True)
     ac.UpdateData()
-    ac.getFTdata(ft._physics_view.get_force_sensor_forces())
+    ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
     if(is_first):
         world.reset()
         ac.UpdateData()
-        ac.getFTdata(ft._physics_view.get_force_sensor_forces())
+        ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
         print("Initial q : " )
         print(ac.getPosition()) 
         is_first = False
@@ -45,7 +45,13 @@ while (simulation_app.is_running() and (not exit_flag)):
         ac.setMode("joint_ctrl_init")
     elif keyboard.is_pressed("1"):
         time.sleep(0.1)
-        ac.setMode("CLIK")
+        ac.setMode("CLIK Circle")
+    elif keyboard.is_pressed("2"):
+        time.sleep(0.1)
+        ac.setMode("CLIK Square")
+    elif keyboard.is_pressed("3"):
+        time.sleep(0.1)
+        ac.setMode("CLIK Eight")
     elif keyboard.is_pressed("o"):
         time.sleep(0.1)
         ac.setMode("gripper_open")
@@ -71,4 +77,5 @@ while (simulation_app.is_running() and (not exit_flag)):
     if is_simulation_run:
         ac.compute()
         ac.write()
+ac.closeFile()
 simulation_app.close()

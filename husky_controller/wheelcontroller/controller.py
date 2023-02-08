@@ -81,7 +81,7 @@ class WheelController:
             if i == 0:
                 th_traj[i] = self.pose_init[2]
             else:
-                if math.atan2(pose_dot_y_traj[i], pose_dot_x_traj[i]) < 0.001:
+                if abs(math.atan2(pose_dot_y_traj[i], pose_dot_x_traj[i])) < 0.001:
                     th_traj[i] = th_traj[i-1]
                 else:
                     th_traj[i] = math.atan2(pose_dot_y_traj[i], pose_dot_x_traj[i])
@@ -101,7 +101,7 @@ class WheelController:
         traj = np.column_stack((traj, w_traj))
         return traj # x, y, theta, vx, vy, w(for base frame)
     
-    def Tracking(self, traj_data: np.array):
+    def Tracking(self, traj_data: np.array, traj_type: str):
         index = self.tick - self.tick_init
         if index < 0 or index >= traj_data.shape[0]:
             self.v_desired = np.zeros(DOF)
@@ -117,7 +117,12 @@ class WheelController:
                                                                        max_angular_speed=2.0,
                                                                        is_skid=True,
                                                                        wheel_distance_multiplier=1.875)
-        self.record(0, traj_data.shape[0]/self.hz)
+        if traj_type == "Tracking Circle":
+            self.record(0, traj_data.shape[0]/self.hz)
+        if traj_type == "Tracking Square":
+            self.record(1, traj_data.shape[0]/self.hz)
+        if traj_type == "Tracking Eight":
+            self.record(2, traj_data.shape[0]/self.hz)
     
     def UpdateData(self)->None:
         position, orientation = self.husky.get_world_pose()
@@ -157,8 +162,12 @@ class WheelController:
                                       orientation=np.array([1.,0.,0.,0.]))
             self.joint_vel_desired = np.zeros(4)
             
-        elif self.control_mode == "Tracking":
-            self.Tracking(self.getTrajData("/circle.txt"))
+        elif self.control_mode == "Tracking Circle":
+            self.Tracking(self.getTrajData("/circle.txt"), self.control_mode)
+        elif self.control_mode == "Tracking Square":
+            self.Tracking(self.getTrajData("/square.txt"), self.control_mode)
+        elif self.control_mode == "Tracking Eight":
+            self.Tracking(self.getTrajData("/eight.txt"), self.control_mode)
             
         self.printState()
         self.play_time = self.world.current_time
