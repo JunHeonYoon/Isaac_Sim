@@ -40,25 +40,28 @@ while (simulation_app.is_running() and (not exit_flag)):
         is_first = False
         ac.initPosition()
     
-    if keyboard.is_pressed("i"):
+    if keyboard.is_pressed("shift+i"):
         time.sleep(0.1)
         ac.setMode("joint_ctrl_init")
-    elif keyboard.is_pressed("1"):
+    elif keyboard.is_pressed("shift+1"):
         time.sleep(0.1)
         ac.setMode("CLIK Circle")
-    elif keyboard.is_pressed("2"):
+    elif keyboard.is_pressed("shift+2"):
         time.sleep(0.1)
         ac.setMode("CLIK Square")
-    elif keyboard.is_pressed("3"):
+    elif keyboard.is_pressed("shift+3"):
         time.sleep(0.1)
         ac.setMode("CLIK Eight")
-    elif keyboard.is_pressed("o"):
+    elif keyboard.is_pressed("shift+o"):
         time.sleep(0.1)
         ac.setMode("gripper_open")
-    elif keyboard.is_pressed("c"):
+    elif keyboard.is_pressed("shift+c"):
         time.sleep(0.1)
         ac.setMode("gripper_close")
-    elif keyboard.is_pressed("p"):
+    elif keyboard.is_pressed("shift+g"):
+        time.sleep(0.1)
+        ac.setMode("pick_up")
+    elif keyboard.is_pressed("shift+p"):
         if is_simulation_run:
             time.sleep(0.1)
             world.pause()  
@@ -69,7 +72,7 @@ while (simulation_app.is_running() and (not exit_flag)):
             world.play()
             print("Simulation Play")
             is_simulation_run = True
-    elif keyboard.is_pressed("q"):
+    elif keyboard.is_pressed("shift+q"):
         time.sleep(0.1)
         is_simulation_run = False
         exit_flag = True

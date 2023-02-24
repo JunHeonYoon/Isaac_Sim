@@ -19,7 +19,7 @@ class WheelController:
         self.control_mode = "none"
         self.is_mode_changed = False
         self.pkg_path = pkg_path
-        self.file_names = ["Circle", "Square", "Eight"]
+        self.file_names = ["Circle", "Square", "Eight", "VelCommand"]
         self.initDimension()
         self.initModel()        
         self.initFile()
@@ -58,6 +58,9 @@ class WheelController:
             print("\nLinear velocity[m/s, m/s, rad/s] : ")
             print(self.v)
             print(self.v_desired)
+            print("\nJoint velocity[rad/s] : ")
+            print(self.joint_vel)
+            print(self.joint_vel_desired)
             print("----------------------------")
             print("\n\n\n")
             
@@ -101,7 +104,7 @@ class WheelController:
         traj = np.column_stack((traj, w_traj))
         return traj # x, y, theta, vx, vy, w(for base frame)
     
-    def Tracking(self, traj_data: np.array, traj_type: str):
+    def Tracking(self, traj_data: np.array, traj_type: str)->None:
         index = self.tick - self.tick_init
         if index < 0 or index >= traj_data.shape[0]:
             self.v_desired = np.zeros(DOF)
@@ -124,6 +127,21 @@ class WheelController:
         if traj_type == "Tracking Eight":
             self.record(2, traj_data.shape[0]/self.hz)
     
+    def VelCommand(self, linvel_desired:float, angvel_desired:float, duration:float)->None:
+        if self.play_time <= self.control_start_time + duration:
+            self.v_desired = np.array([linvel_desired, 0, angvel_desired])
+        else:
+            self.v_desired = np.zeros(3)
+        self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                       wheel_distance=0.5708,
+                                                                       linear_velocity=self.v_desired.item(0),
+                                                                       angular_velocity=self.v_desired.item(2),
+                                                                       max_linear_speed=1.0,
+                                                                       max_angular_speed=2.0,
+                                                                       is_skid=True,
+                                                                       wheel_distance_multiplier=1.875)
+        self.record(3, duration)
+        
     def UpdateData(self)->None:
         position, orientation = self.husky.get_world_pose()
         self.pose[:2] = position[:2]
@@ -136,6 +154,7 @@ class WheelController:
         
         self.v[0] =  self.pose_dot[0] * math.cos(self.pose[2]) + self.pose_dot[1] * math.sin(self.pose[2])
         self.v[1] = -self.pose_dot[0] * math.sin(self.pose[2]) + self.pose_dot[1] * math.cos(self.pose[2])
+        self.v[2] = angvel[2]
         
         self.joint_vel = self.husky.get_joint_velocities()
         
@@ -168,6 +187,12 @@ class WheelController:
             self.Tracking(self.getTrajData("/square.txt"), self.control_mode)
         elif self.control_mode == "Tracking Eight":
             self.Tracking(self.getTrajData("/eight.txt"), self.control_mode)
+        elif self.control_mode == "Velocity Command":
+            linear_vel = 0.25
+            angular_vel = 0.125
+            duration = 2*2*math.pi / linear_vel
+            # duration = 5
+            self.VelCommand(linear_vel, angular_vel, duration)
             
         self.printState()
         self.play_time = self.world.current_time
@@ -184,7 +209,7 @@ class WheelController:
     
     def record(self, file_name_index:int, duration:float):
         if self.play_time < self.control_start_time + duration + 1.0:
-            data = str(self.pose)[1:-1] + " " + str(self.v)[1:-1]
+            data = str(self.pose*1000)[1:-1] + " " + str(self.v*1000)[1:-1]
             globals()["self.file_"+str(file_name_index)].write(data + "\n" )
             
     def closeFile(self)->None:
