@@ -15,9 +15,9 @@ hz = 50
 pkg_path = "/home/dyros/Isaac_Sim/husky_controller"
 world = World(stage_units_in_meters=1.0)
 world.scene.add_default_ground_plane()
-add_reference_to_stage(usd_path=pkg_path+"/model/husky.usd", prim_path="/World/husky")
-world.set_simulation_dt(1/hz, 1/hz) 
-wc = WheelController(hz, world, pkg_path)
+add_reference_to_stage(usd_path=pkg_path+"/model/husky(two_wheel_sphere).usd", prim_path="/World/husky")
+world.set_simulation_dt(1/hz, 1/hz)
+wc = WheelController(hz=hz, world=world, pkg_path=pkg_path, is_two_wheel=True)
 world.reset()
 
 
@@ -36,22 +36,22 @@ while (simulation_app.is_running() and (not exit_flag)):
         is_first = False
         wc.initPosition()
     
-    if keyboard.is_pressed("ctrl+i"):
+    if keyboard.is_pressed("shift+i"):
         time.sleep(0.1)
         wc.setMode("init")
-    elif keyboard.is_pressed("ctrl+1"):
+    elif keyboard.is_pressed("shift+1"):
         time.sleep(0.1)
         wc.setMode("Tracking Circle")
-    elif keyboard.is_pressed("ctrl+2"):
+    elif keyboard.is_pressed("shift+2"):
         time.sleep(0.1)
         wc.setMode("Tracking Square")
-    elif keyboard.is_pressed("ctrl+3"):
+    elif keyboard.is_pressed("shift+3"):
         time.sleep(0.1)
         wc.setMode("Tracking Eight")
-    elif keyboard.is_pressed("ctrl+4"):
+    elif keyboard.is_pressed("shift+4"):
         time.sleep(0.1)
         wc.setMode("Velocity Command")
-    elif keyboard.is_pressed("ctrl+p"):
+    elif keyboard.is_pressed("shift+p"):
         if is_simulation_run:
             time.sleep(0.1)
             world.pause()  
@@ -62,7 +62,7 @@ while (simulation_app.is_running() and (not exit_flag)):
             world.play()
             print("Simulation Play")
             is_simulation_run = True
-    elif keyboard.is_pressed("ctrl+q"):
+    elif keyboard.is_pressed("shift+q"):
         time.sleep(0.1)
         is_simulation_run = False
         exit_flag = True

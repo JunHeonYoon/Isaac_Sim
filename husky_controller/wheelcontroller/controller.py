@@ -11,7 +11,7 @@ import wheelcontroller.differential as diffcontroller
 np.set_printoptions(precision=3, suppress=True)
 
 class WheelController:
-    def __init__(self, hz: float, world:World, pkg_path:str) -> None:
+    def __init__(self, hz: float, world:World, pkg_path:str, is_two_wheel:bool) -> None:
         self.hz = hz
         self.world = world
         self.tick = 0
@@ -20,6 +20,7 @@ class WheelController:
         self.is_mode_changed = False
         self.pkg_path = pkg_path
         self.file_names = ["Circle", "Square", "Eight", "VelCommand"]
+        self.is_two_wheel = is_two_wheel
         self.initDimension()
         self.initModel()        
         self.initFile()
@@ -36,8 +37,14 @@ class WheelController:
         self.v_desired = np.zeros(DOF) 
         
         # self.joint_vel_init = np.zeros(4) # Wheel velocity
-        self.joint_vel = np.zeros(4)
-        self.joint_vel_desired = np.zeros(4)
+        if(self.is_two_wheel):  
+            self.joint_vel = np.zeros(2)
+            self.joint_vel_desired = np.zeros(2)
+            self.dummy_joint_vel = np.zeros(4) # For visual 
+            self.dummy_joint_vel_desired = np.zeros(4)
+        else:
+            self.joint_vel = np.zeros(4)
+            self.joint_vel_desired = np.zeros(4)
          
     def initModel(self)->None:
         self.husky = self.world.scene.add(Articulation(prim_path="/World/husky", name="husky",))
@@ -112,14 +119,25 @@ class WheelController:
         else:
             self.v_desired = np.array([traj_data[index, 3], traj_data[index, 4], traj_data[index, 5]])
             self.pose_desired = np.array([traj_data[index, 0], traj_data[index, 1], traj_data[index, 2]])
-        self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
-                                                                       wheel_distance=0.5708,
-                                                                       linear_velocity=self.v_desired.item(0),
-                                                                       angular_velocity=self.v_desired.item(2),
-                                                                       max_linear_speed=1.0,
-                                                                       max_angular_speed=2.0,
-                                                                       is_skid=True,
-                                                                       wheel_distance_multiplier=1.875)
+        if self.is_two_wheel:
+            self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                           wheel_distance=0.5708,
+                                                                           linear_velocity=self.v_desired.item(0),
+                                                                           angular_velocity=self.v_desired.item(2),
+                                                                           max_linear_speed=1.0,
+                                                                           max_angular_speed=2.0,
+                                                                           is_skid=False,
+                                                                           wheel_distance_multiplier=1.0)
+            self.dummy_joint_vel_desired = np.concatenate([self.joint_vel_desired ,self.joint_vel_desired], axis=0)
+        else:
+            self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                           wheel_distance=0.5708,
+                                                                           linear_velocity=self.v_desired.item(0),
+                                                                           angular_velocity=self.v_desired.item(2),
+                                                                           max_linear_speed=1.0,
+                                                                           max_angular_speed=2.0,
+                                                                           is_skid=True,
+                                                                           wheel_distance_multiplier=1.875)
         if traj_type == "Tracking Circle":
             self.record(0, traj_data.shape[0]/self.hz)
         if traj_type == "Tracking Square":
@@ -132,14 +150,25 @@ class WheelController:
             self.v_desired = np.array([linvel_desired, 0, angvel_desired])
         else:
             self.v_desired = np.zeros(3)
-        self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
-                                                                       wheel_distance=0.5708,
-                                                                       linear_velocity=self.v_desired.item(0),
-                                                                       angular_velocity=self.v_desired.item(2),
-                                                                       max_linear_speed=1.0,
-                                                                       max_angular_speed=2.0,
-                                                                       is_skid=True,
-                                                                       wheel_distance_multiplier=1.875)
+        if self.is_two_wheel:
+            self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                           wheel_distance=0.5708,
+                                                                           linear_velocity=self.v_desired.item(0),
+                                                                           angular_velocity=self.v_desired.item(2),
+                                                                           max_linear_speed=1.0,
+                                                                           max_angular_speed=2.0,
+                                                                           is_skid=False,
+                                                                           wheel_distance_multiplier=1.0)
+            self.dummy_joint_vel_desired = np.concatenate([self.joint_vel_desired , self.joint_vel_desired], axis=0)
+        else:
+            self.joint_vel_desired = diffcontroller.DifferentialController(wheel_radius=0.1651,
+                                                                           wheel_distance=0.5708,
+                                                                           linear_velocity=self.v_desired.item(0),
+                                                                           angular_velocity=self.v_desired.item(2),
+                                                                           max_linear_speed=1.0,
+                                                                           max_angular_speed=2.0,
+                                                                           is_skid=True,
+                                                                           wheel_distance_multiplier=1.875)
         self.record(3, duration)
         
     def UpdateData(self)->None:
@@ -156,13 +185,19 @@ class WheelController:
         self.v[1] = -self.pose_dot[0] * math.sin(self.pose[2]) + self.pose_dot[1] * math.cos(self.pose[2])
         self.v[2] = angvel[2]
         
-        self.joint_vel = self.husky.get_joint_velocities()
+        if self.is_two_wheel:
+            self.joint_vel = self.husky.get_joint_velocities()[4:]
+            self.dummy_joint_vel = self.husky.get_joint_velocities()[:4]
+        else:
+            self.joint_vel = self.husky.get_joint_velocities()
         
     def initPosition(self)->None:
         self.pose_init = self.pose
         self.pose_desired = self.pose_init
         self.v_desired = self.v
         self.joint_vel_desired = self.joint_vel
+        if self.is_two_wheel:
+            self.dummy_joint_vel_desired = self.dummy_joint_vel
         
     def setMode(self, mode:str)->None:
         self.is_mode_changed = True
@@ -179,7 +214,11 @@ class WheelController:
         if self.control_mode == "init":
             self.husky.set_world_pose(position=np.array([0.,0.,0.0780]),
                                       orientation=np.array([1.,0.,0.,0.]))
-            self.joint_vel_desired = np.zeros(4)
+            if self.is_two_wheel:
+                self.joint_vel_desired = np.zeros(2)
+                self.dummy_joint_vel_desired = np.zeros(4)
+            else:
+                self.joint_vel_desired = np.zeros(4)
             
         elif self.control_mode == "Tracking Circle":
             self.Tracking(self.getTrajData("/circle.txt"), self.control_mode)
@@ -205,11 +244,14 @@ class WheelController:
         return self.v      
     
     def write(self)->None:
-        self.husky.set_joint_velocities(self.joint_vel_desired)
+        if self.is_two_wheel:
+            self.husky.set_joint_velocities(velocities=np.concatenate([self.dummy_joint_vel_desired, self.joint_vel_desired], axis=0))
+        else:
+            self.husky.set_joint_velocities(self.joint_vel_desired)
     
     def record(self, file_name_index:int, duration:float):
         if self.play_time < self.control_start_time + duration + 1.0:
-            data = str(self.pose*1000)[1:-1] + " " + str(self.v*1000)[1:-1]
+            data = str(self.play_time - self.control_start_time) + " " + str(self.pose*1000)[1:-1] + " " + str(self.v*1000)[1:-1]
             globals()["self.file_"+str(file_name_index)].write(data + "\n" )
             
     def closeFile(self)->None:

@@ -22,8 +22,8 @@ def DifferentialController(wheel_radius:float,
         if angular_velocity > max_angular_speed:
             angular_velocity_ = max_angular_speed
         
-    w_L = (linear_velocity_ - angular_velocity_ * (wheel_distance * wheel_distance_multiplier / 2) ) / (wheel_radius * wheel_radius_multiplier)
-    w_R = (linear_velocity_ + angular_velocity_ * (wheel_distance * wheel_distance_multiplier / 2) ) / (wheel_radius * wheel_radius_multiplier)
+    w_L = (linear_velocity_ - angular_velocity_ * (wheel_distance * wheel_distance_multiplier)/2 ) / (wheel_radius * wheel_radius_multiplier)
+    w_R = (linear_velocity_ + angular_velocity_ * (wheel_distance * wheel_distance_multiplier)/2 ) / (wheel_radius * wheel_radius_multiplier)
     
     if max_wheel_speed != None:
         if w_L > max_wheel_speed:
