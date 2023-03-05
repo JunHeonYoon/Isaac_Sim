@@ -111,7 +111,7 @@ class ArmController:
         self.obstacle = VisualSphere(prim_path="/Obstacle",
                                      position=[0.7, 0, 0.5],
                                      orientation=[0, 0,0, 1],
-                                     radius=radius*1.5,
+                                     radius=radius,
                                      color=np.array([1,0,0]))
         
     def initFile(self)->None:
