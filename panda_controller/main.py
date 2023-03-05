@@ -32,12 +32,12 @@ while (simulation_app.is_running() and (not exit_flag)):
     ac.UpdateData()
     ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
     if(is_first):
+        is_first = False
         world.reset()
         ac.UpdateData()
         ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
         print("Initial q : " )
         print(ac.getPosition()) 
-        is_first = False
         ac.initPosition()
     
     if keyboard.is_pressed("shift+i"):
@@ -61,6 +61,9 @@ while (simulation_app.is_running() and (not exit_flag)):
     elif keyboard.is_pressed("shift+g"):
         time.sleep(0.1)
         ac.setMode("pick_up")
+    elif keyboard.is_pressed("shift+n"):
+        time.sleep(0.1)
+        ac.setMode("collision_avoidance")
     elif keyboard.is_pressed("shift+p"):
         if is_simulation_run:
             time.sleep(0.1)

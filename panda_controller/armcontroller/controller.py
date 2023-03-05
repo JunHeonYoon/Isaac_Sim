@@ -9,11 +9,20 @@ from omni.isaac.core.utils.types import ArticulationAction
 from omni.isaac.manipulators.grippers import ParallelGripper
 from omni.isaac.manipulators import SingleManipulator
 from omni.isaac.core.objects import DynamicCuboid
+from omni.isaac.core.objects import VisualCuboid, VisualSphere
 import lula
 import math_type_define.dyros_math as DyrosMath
 import math
+import ik.IK_solver as IK_solver
 
 np.set_printoptions(precision=3, suppress=True)
+
+def rot2quat(rotation):
+    r=Rotation.from_matrix(rotation)
+    return r.as_quat()
+def quat2rot(quat):
+    r=Rotation.from_quat(quat)
+    return r.as_matrix()
 
 class ArmController:
     def __init__(self, hz: float, world: World, pkg_path: str)->None: 
@@ -28,8 +37,10 @@ class ArmController:
         self.initDimension()
         self.initModel()
         self.initCube()
+        self.initObs(0.05)
         self.initFile()
-        
+        self.ik = IK_solver.IKsolver(0.05)
+             
     def initDimension(self)->None:
         self.q_init = np.zeros(DOF)
         self.q = np.zeros(DOF)
@@ -73,13 +84,20 @@ class ArmController:
         self.franka_controller = self.franka.get_articulation_controller()
         self.kinematic = lula.RobotDescription.kinematics(lula.load_robot(robot_description_file=model_path + "/panda_robot_description.yaml",
                                                              robot_urdf=model_path + "/panda_arm_hand.urdf"))
-        joints_default_positions = np.zeros(9)
-        joints_default_positions[3] = -math.pi/2
-        joints_default_positions[5] = math.pi/2
-        joints_default_positions[6] = math.pi/4
+        # joints_default_positions = np.zeros(9)
+        # joints_default_positions[3] = -math.pi/2
+        # joints_default_positions[5] = math.pi/2
+        # joints_default_positions[6] = math.pi/4
 
-        self.franka.set_joints_default_state(positions=joints_default_positions)
+        # self.franka.set_joints_default_state(positions=joints_default_positions)
         self.franka.gripper.set_default_state(self.franka.gripper.joint_opened_positions)
+        
+        # Target pose cube
+        self.target_cube = VisualCuboid(prim_path="/Target_cube",
+                                        position=[0.5, 0, 0.5],
+                                        # orientation=[1, 0, 0, 0],
+                                        scale=np.array([.05,.1,.05]),
+                                        color=np.array([0,1,0]))
     
     def initCube(self)->None:
         self.cube = self.world.scene.add(DynamicCuboid(prim_path="/World/cube",
@@ -88,6 +106,13 @@ class ArmController:
                                                        scale=np.array([0.04, 0.04, 0.04]),
                                                        color=np.array([0, 0, 1.0]),
                                                        mass=0.04))
+      
+    def initObs(self, radius:float)->None:
+        self.obstacle = VisualSphere(prim_path="/Obstacle",
+                                     position=[0.7, 0, 0.5],
+                                     orientation=[0, 0,0, 1],
+                                     radius=radius*1.5,
+                                     color=np.array([1,0,0]))
         
     def initFile(self)->None:
         for i in range(len(self.file_names)):
@@ -99,6 +124,8 @@ class ArmController:
             print("---------------------------------")
             print("Time : ")
             print(round(self.play_time, 2))
+            print("Joint(q) :")
+            print(self.q)   
             print("\nposition : ")
             print(self.pose[:3, 3].T)
             print("\norientation : ")
@@ -110,8 +137,7 @@ class ArmController:
             print("\ngripper position : ")
             print(self.gripper_pose)
             print("\nFT data from tips : ")
-            print(self.ft_data)
-            
+            print(self.ft_data)           
             print("---------------------------------")
             print("\n\n")
                 
@@ -198,13 +224,6 @@ class ArmController:
             self.record(1, traj_data.shape[0]/self.hz)
         elif traj_type == "CLIK Eight":
             self.record(2, traj_data.shape[0]/self.hz)
-        
-    def setGripperPosition(self, target_position:np.array, duration:float)->None:
-        self.gripper_pose_desired = DyrosMath.cubicVector(self.play_time, self.control_start_time, self.control_start_time+duration, 
-                                                     self.gripper_pose_init, target_position, np.zeros(2), np.zeros(2))
-        
-    def setGripperForce(self, target_force:np.array)->None:
-        self.gripper_force_desired = target_force
   
     def setGripperOpen(self)->None:
         self.gripper_mode = True
@@ -213,6 +232,25 @@ class ArmController:
     def setGripperClose(self)->None:
         self.gripper_mode = True
         self.gripper_pose_desired = self.gripper_pose - np.array([0.05, 0.05])
+  
+    def NSDF(self):
+        self.ik.setCurrentStates(self.pose, self.q, self.j)
+        
+        cube_position, cube_quat = self.target_cube.get_world_pose()
+        cube_rotation = quat2rot(cube_quat)
+        desired_pose = np.diag(np.ones(4))
+        desired_pose[:3, :3] = cube_rotation
+        desired_pose[:3, 3] = cube_position
+        self.ik.setDesiredPose(desired_pose)
+        
+        obs_posi,_ = self.obstacle.get_world_pose()
+        self.ik.setObsPosition(obs_posi)
+        
+        self.ik.solveIK()
+        qdel_desired = self.ik.getJointDisplacement()
+        self.q_desired = self.q_desired + qdel_desired
+        
+        
   
     def UpdateData(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
@@ -266,13 +304,9 @@ class ArmController:
             self.CLIK(traj_data=self.getTrajData("/eight.txt"), traj_type=self.control_mode)
             
         elif(self.control_mode == "gripper_open"):
-            # target_gripper = np.array([0.04, 0.04])
-            # self.setGripperPosition(target_gripper, 1)
             self.setGripperOpen()
             
         elif(self.control_mode == "gripper_close"):
-            # target_gripper = np.array([0.0, 0.0])
-            # self.setGripperPosition(target_gripper, 1)
             self.setGripperClose()
             
         elif(self.control_mode == "pick_up"):
@@ -282,12 +316,11 @@ class ArmController:
                 self.pose_desired = self.pose_init.copy()
                 self.setGripperOpen()
             elif self.event_index == 1:
-                cube_position, cubic_ori = self.cube.get_world_pose()
-                ori_tool = Rotation.from_quat(cubic_ori)
-                cubic_orientation = ori_tool.as_matrix()
+                cube_position, cube_quat = self.cube.get_world_pose()
+                cube_rotation = quat2rot(cube_quat)
                 gripper_offset = np.array([0, 0.005, 0.095])
                 desired_pose = np.zeros((4, 4))
-                desired_pose[:3, :3] = cubic_orientation
+                desired_pose[:3, :3] = cube_rotation
                 desired_pose[:3, 3] = cube_position + gripper_offset        
                 self.CLIK(target_pose = desired_pose, duration = duration_set[1])
             elif self.event_index == 2:
@@ -300,6 +333,9 @@ class ArmController:
                     self.is_mode_changed = True
                     self.event_index += 1
             
+        elif(self.control_mode == "collision_avoidance"):
+            self.NSDF()
+        
         self.printState()
         self.play_time = self.world.current_time
         self.tick = self.world.current_time_step_index
