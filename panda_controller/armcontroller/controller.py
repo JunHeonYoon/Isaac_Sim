@@ -113,6 +113,7 @@ class ArmController:
                                      orientation=[0, 0,0, 1],
                                      radius=radius,
                                      color=np.array([1,0,0]))
+        self.obstacle.set_collision_enabled(True)
         
     def initFile(self)->None:
         for i in range(len(self.file_names)):
