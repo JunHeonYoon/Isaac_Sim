@@ -19,7 +19,7 @@ np.set_printoptions(precision=3, suppress=True)
 
 # ---------------------------------------- Setting of Simulation -----------------------------------------------------------
 hz = 100
-model_path = "/home/dyros/Isaac_Sim/panda_controller/model"
+model_path = "/home/yoonjunheon/Isaac_Sim/panda_controller/model"
 world = World(stage_units_in_meters=1.0)
 world.set_simulation_dt(1/hz, 1/hz) 
 asset_path = model_path + "/panda_arm_hand.usd"

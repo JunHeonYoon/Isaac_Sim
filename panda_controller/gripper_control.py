@@ -11,7 +11,7 @@ import math
 
 my_world = World(stage_units_in_meters=1.0)
 #TODO: change this to your own path
-asset_path = "/home/dyros/Isaac_Sim/panda_controller/model/panda_arm_hand.usd"
+asset_path = "/home/yoonjunheon/Isaac_Sim/panda_controller/model/panda_arm_hand.usd"
 add_reference_to_stage(usd_path=asset_path, prim_path="/World/panda")
 
 #define the manipulator

@@ -36,7 +36,7 @@ class IKsolver:
         if skips == []:
             n_layers-=1
         self.nn_model = RobotSdfCollisionNet(in_channels=dof, out_channels=9, layers=[s] * n_layers, skips=skips)
-        self.nn_model.load_weights('/home/dyros/Isaac_Sim/panda_controller/ik/NNmodel/sdf_256x5_mesh_50000.pt', tensor_args)
+        self.nn_model.load_weights('/home/yoonjunheon/Isaac_Sim/panda_controller/ik/NNmodel/sdf_256x5_mesh_50000.pt', tensor_args)
         self.nn_model.model.to(**tensor_args)
 
     def setJointLimit(self, joint_lower_limit:np.array, joint_upper_limit:np.array):

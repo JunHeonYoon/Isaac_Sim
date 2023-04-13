@@ -15,7 +15,7 @@ import keyboard
 import wheelcontroller.differential as diffcontroller
 
 
-file_path = "/home/dyros/Isaac_Sim/husky_controller/trajectory"
+file_path = "/home/yoonjunheon/Isaac_Sim/husky_controller/trajectory"
 traj_data = pd.read_table(file_path+"/eight.txt", sep=" ", header=None)
 traj_data = traj_data.to_numpy()
 traj_linvel = np.sqrt(traj_data[:,3]**2 + traj_data[:,4]**2)
@@ -26,7 +26,7 @@ for i in range(0,traj_linvel.shape[0]):
 
 
 hz = 50
-model_path = "/home/dyros/Isaac_Sim/husky_controller/model"
+model_path = "/home/yoonjunheon/Isaac_Sim/husky_controller/model"
 world = World(stage_units_in_meters=1.0)
 world.set_simulation_dt(1/hz, 1/hz) 
 asset_path = model_path + "/husky.usd"
