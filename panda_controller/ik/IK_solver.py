@@ -12,6 +12,9 @@ import os
 import matplotlib.pyplot as plt
 from ik.sdf.robot_sdf import RobotSdfCollisionNet
 
+os.environ['QPOASES_VERBOSE'] = 'NO'
+
+
 
 DOF = 7
 NUM_LINKS = 9
@@ -68,17 +71,22 @@ class IKsolver:
     def solveIK(self):
         gamma, j_gamma = self.getSDF(self.q, self.obs_posi)
         x_error = np.concatenate([self.x_desired[:3,3]-self.x[:3,3], getPhi(self.x[:3,:3], self.x_desired[:3,:3])], axis=0)
+        gain = np.diag([5,5,5,1,1,1])
+        x_error = np.matmul(gain, x_error)
         
         H = DM(block_diag(2*self.Q, 2*self.R))
         g = DM.zeros(13)
         x_lb = DM(np.concatenate([-np.inf*np.ones(6), self.jlb-self.q],axis=0))
         x_ub = DM(np.concatenate([np.inf*np.ones(6), self.jub-self.q],axis=0))
-        a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9)],axis=0))
-        # a_lb = DM(x_error)
-        a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100)],axis=0))
-        # a_ub = DM(x_error)
-        A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T]]))
-        # A = DM(np.block([-np.identity(6), self.j]))
+        if np.min(gamma - self.r*100) > 1e-10:
+            a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100) - self.r*100*0.2*np.ones(gamma.shape)],axis=0))
+            a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9)],axis=0))
+            A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T]]))
+        else:
+            print("\n\n\n\n!!coliision dectation!!\n\n\n")
+            a_ub = DM(x_error)
+            a_lb = DM(x_error)
+            A = DM(np.block([-np.identity(6), self.j]))
         qp = {}
         qp['h'] = H.sparsity()
         qp['a'] = A.sparsity()
@@ -90,9 +98,9 @@ class IKsolver:
         sol = np.array(solver['x'])[:,0]
         self.del_q = sol[6:]
         
-        print(np.matmul(-j_gamma.T, sol[6:]))
-        print(np.log(gamma-self.r*100))
-        print("\n\n")
+        # print(np.matmul(-j_gamma.T, sol[6:]))
+        # print(np.log(gamma-self.r*100))
+        # print("\n\n")
         
 
         

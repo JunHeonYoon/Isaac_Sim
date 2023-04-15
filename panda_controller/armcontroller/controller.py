@@ -5,8 +5,7 @@ from scipy.spatial.transform import Rotation
 from omni.isaac.core.utils.stage import add_reference_to_stage
 from omni.isaac.core import World
 from omni.isaac.core.utils.types import ArticulationAction
-# from omni.isaac.franka.franka import Franka
-from omni.isaac.manipulators.grippers import ParallelGripper
+from omni.isaac.franka.franka import Franka
 from omni.isaac.manipulators import SingleManipulator
 from omni.isaac.core.objects import DynamicCuboid
 from omni.isaac.core.objects import VisualCuboid, VisualSphere
@@ -31,12 +30,15 @@ class ArmController:
         self.tick = 0
         self.play_time = 0.0
         self.control_mode = "none"
+        self.obs_mode = "Stop"
+        self.tar_mode = "Stop"
         self.is_mode_changed = False
+        self.is_obsmode_changed = False
+        self.is_tarmode_changed = False
         self.pkg_path = pkg_path
         self.file_names = ["Circle", "Square", "Eight"]
         self.initDimension()
         self.initModel()
-        self.initCube()
         self.initObs(0.05)
         self.initFile()
         self.ik = IK_solver.IKsolver(0.05)
@@ -55,61 +57,35 @@ class ArmController:
         self.pose = np.zeros((4,4))
         self.pose_desired = np.zeros((4,4))
         self.pose_qd = np.zeros((4,4))
-        self.gripper_pose_init = np.zeros(2)
-        self.gripper_pose_desired = np.zeros(2)
-        self.gripper_pose = np.zeros(2)
+        # self.gripper_pose_init = np.zeros(2)
+        # self.gripper_pose_desired = np.zeros(2)
+        # self.gripper_pose = np.zeros(2)
         self.action = ArticulationAction()
         self.event_index = 0
-        self.gripper_mode = False
+        # self.gripper_mode = False
         
     def initModel(self)->None:
-        model_path = self.pkg_path + "/model"
-        # self.franka = self.world.scene.add(Franka(prim_path="/World/panda", name="franka_robot",
-        #                                           end_effector_prim_name="panda_hand",
-        #                                           gripper_dof_names = ["panda_finger_joint1", "panda_finger_joint2"],
-        #                                           gripper_open_position = np.array([0.05, 0.05]),
-        #                                           gripper_closed_position = np.array([0.0, 0.0]),))
-        self.gripper = ParallelGripper(
-            end_effector_prim_path="/World/panda/panda_rightfinger",
-            joint_prim_names=["panda_finger_joint1", "panda_finger_joint2"],
-            joint_opened_positions=np.array([0.05, 0.05]),
-            joint_closed_positions=np.array([0.0, 0.0]),
-            action_deltas=np.array([0.05, 0.05]),
-        )       
+        model_path = self.pkg_path + "/model"       
         self.franka = self.world.scene.add(SingleManipulator(prim_path="/World/panda", 
                                                              name="franka_robot",
-                                                             end_effector_prim_name="panda_rightfinger",
-                                                             gripper=self.gripper))
+                                                             end_effector_prim_name="panda_hand",
+                                                            #  gripper=self.gripper
+                                                             ))
         
         self.franka_controller = self.franka.get_articulation_controller()
         self.kinematic = lula.RobotDescription.kinematics(lula.load_robot(robot_description_file=model_path + "/panda_robot_description.yaml",
-                                                             robot_urdf=model_path + "/panda_arm_hand.urdf"))
-        # joints_default_positions = np.zeros(9)
-        # joints_default_positions[3] = -math.pi/2
-        # joints_default_positions[5] = math.pi/2
-        # joints_default_positions[6] = math.pi/4
-
-        # self.franka.set_joints_default_state(positions=joints_default_positions)
-        self.franka.gripper.set_default_state(self.franka.gripper.joint_opened_positions)
+                                                             robot_urdf=model_path + "/panda_arm_hand_wo_gripper.urdf"))
         
         # Target pose cube
         self.target_cube = VisualCuboid(prim_path="/Target_cube",
-                                        position=[0.5, 0, 0.5],
+                                        position=[0.5, 0.5, 0.5],
                                         # orientation=[1, 0, 0, 0],
                                         scale=np.array([.05,.1,.05]),
                                         color=np.array([0,1,0]))
-    
-    def initCube(self)->None:
-        self.cube = self.world.scene.add(DynamicCuboid(prim_path="/World/cube",
-                                                       name="Cube",
-                                                       position=np.array([0.55, 0, 0.1]),
-                                                       scale=np.array([0.04, 0.04, 0.04]),
-                                                       color=np.array([0, 0, 1.0]),
-                                                       mass=0.04))
       
     def initObs(self, radius:float)->None:
         self.obstacle = VisualSphere(prim_path="/Obstacle",
-                                     position=[0.7, 0, 0.5],
+                                     position=[0.3, 0, 0.5],
                                      orientation=[0, 0,0, 1],
                                      radius=radius,
                                      color=np.array([1,0,0]))
@@ -134,11 +110,7 @@ class ArmController:
             print("\njacobian : ")
             print(self.j)
             print("\ntorque : ")
-            print(self.torque)
-            print("\ngripper position : ")
-            print(self.gripper_pose)
-            print("\nFT data from tips : ")
-            print(self.ft_data)           
+            print(self.torque)        
             print("---------------------------------")
             print("\n\n")
                 
@@ -226,14 +198,6 @@ class ArmController:
         elif traj_type == "CLIK Eight":
             self.record(2, traj_data.shape[0]/self.hz)
   
-    def setGripperOpen(self)->None:
-        self.gripper_mode = True
-        self.gripper_pose_desired = self.gripper_pose + np.array([0.05, 0.05])
-        
-    def setGripperClose(self)->None:
-        self.gripper_mode = True
-        self.gripper_pose_desired = self.gripper_pose - np.array([0.05, 0.05])
-  
     def NSDF(self):
         self.ik.setCurrentStates(self.pose, self.q, self.j)
         
@@ -251,24 +215,42 @@ class ArmController:
         qdel_desired = self.ik.getJointDisplacement()
         self.q_desired = self.q_desired + qdel_desired
         
-        
+    def ObstacleMove(self, velocity:float = 1.0, length:float = 0.2, dir:np.array = np.array([0, 0, 1]))->None:
+        if abs(np.linalg.norm(self.obs_posi_init - self.obs_posi) - length) < velocity/self.hz:
+            self.obs_dir_sign = self.obs_dir_sign * -1
+        del_posi = dir*self.obs_dir_sign*velocity/self.hz
+        self.obstacle.set_local_pose(translation=self.obs_posi + del_posi)
+
+    def TargetMove(self, velocity:float = 1.0, dir:np.array = np.array([1,0,0]))->None:
+        del_posi = dir*velocity/self.hz
+        self.target_cube.set_local_pose(translation=self.tar_posi + del_posi)
   
     def UpdateData(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
         self.qd = self.franka.get_joint_velocities()[:7]
         self.torque = self.franka.get_applied_joint_efforts()[:7]
-        self.gripper_pose = self.franka.gripper.get_joint_positions()
+        # self.gripper_pose = self.franka.gripper.get_joint_positions()
                  
     def initPosition(self)->None:
         self.q_init = self.q
         self.q_desired = self.q_init
-        self.gripper_pose_init = self.gripper_pose
-        self.gripper_pose_desired = self.gripper_pose_init
+        # self.gripper_pose_init = self.gripper_pose
+        # self.gripper_pose_desired = self.gripper_pose_init
           
     def setMode(self, mode:str)->None:
         self.is_mode_changed = True
         self.control_mode = mode
         print("Current mode (changed) : "+self.control_mode)
+
+    def setObsMode(self, mode:str)->None:
+        self.is_obsmode_changed = True
+        self.obs_mode = mode
+        print("Obstacle condition (changed) : "+self.obs_mode)
+
+    def setTarMode(self, mode:str)->None:
+        self.is_tarmode_changed = True
+        self.tar_mode = mode
+        print("Target condition (changed) : "+self.tar_mode)
         
     def compute(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
@@ -277,6 +259,8 @@ class ArmController:
         self.pose = self.kinematic.pose(cspace_position=self.q.astype(np.float64), frame="panda_hand").matrix()
         self.pose_qd = self.kinematic.pose(cspace_position=self.q_desired.astype(np.float64), frame="panda_hand").matrix()
         self.vel = np.dot(self.j, self.qd) 
+        self.obs_posi,_ = self.obstacle.get_local_pose()
+        self.tar_posi,_ = self.target_cube.get_local_pose()
         
         if(self.is_mode_changed):
             self.is_mode_changed = False
@@ -284,11 +268,13 @@ class ArmController:
             self.q_init = self.q
             self.qd_init = self.qd
             self.pose_init = self.pose
-            self.gripper_pose_init = self.gripper_pose
             self.tick_init = self.tick
-            self.gripper_mode = False
-            if(self.control_mode != "pick_up"):
-                self.event_index = 0
+        if(self.is_obsmode_changed):
+            self.is_obsmode_changed = False
+            self.obs_posi_init = self.obs_posi
+            self.obs_dir_sign = 1
+        if(self.is_tarmode_changed):
+            self.is_tarmode_changed = False
             
         
         if(self.control_mode == "joint_ctrl_init"):
@@ -304,38 +290,25 @@ class ArmController:
         elif(self.control_mode == "CLIK Eight"):
             self.CLIK(traj_data=self.getTrajData("/eight.txt"), traj_type=self.control_mode)
             
-        elif(self.control_mode == "gripper_open"):
-            self.setGripperOpen()
-            
-        elif(self.control_mode == "gripper_close"):
-            self.setGripperClose()
-            
-        elif(self.control_mode == "pick_up"):
-            duration_set = np.array([1.0, 2.0, 1.0, 4.0]) # Open Gripper, Go to Cube, Close Gripper, Back to initial pose
-            
-            if self.event_index == 0:
-                self.pose_desired = self.pose_init.copy()
-                self.setGripperOpen()
-            elif self.event_index == 1:
-                cube_position, cube_quat = self.cube.get_world_pose()
-                cube_rotation = quat2rot(cube_quat)
-                gripper_offset = np.array([0, 0.005, 0.095])
-                desired_pose = np.zeros((4, 4))
-                desired_pose[:3, :3] = cube_rotation
-                desired_pose[:3, 3] = cube_position + gripper_offset        
-                self.CLIK(target_pose = desired_pose, duration = duration_set[1])
-            elif self.event_index == 2:
-                self.setGripperClose()
-            elif self.event_index == 3:
-                self.CLIK(target_pose = self.pose_desired, duration = duration_set[3])
-            
-            if self.event_index in range(0,4):
-                if self.play_time > self.control_start_time + duration_set[self.event_index]:
-                    self.is_mode_changed = True
-                    self.event_index += 1
             
         elif(self.control_mode == "collision_avoidance"):
             self.NSDF()
+        
+        if(self.obs_mode == "Move"):
+            self.ObstacleMove(dir=np.array([0,0,1]), velocity=0.075)
+        
+        if(self.tar_mode == "Move Up"):
+            self.TargetMove(dir = np.array([0,0,1]), velocity=0.1)
+        elif(self.tar_mode == "Move Down"):
+            self.TargetMove(dir = np.array([0,0,-1]), velocity=0.1)
+        elif(self.tar_mode == "Move Left"):
+            self.TargetMove(dir = np.array([0,-1,0]), velocity=0.1)
+        elif(self.tar_mode == "Move Right"):
+            self.TargetMove(dir = np.array([0,1,0]), velocity=0.1)
+        elif(self.tar_mode == "Move Forward"):
+            self.TargetMove(dir = np.array([1,0,0]), velocity=0.1)
+        elif(self.tar_mode == "Move Back"):
+            self.TargetMove(dir = np.array([-1,0,0]), velocity=0.1)
         
         self.printState()
         self.play_time = self.world.current_time
@@ -344,24 +317,21 @@ class ArmController:
     def getPosition(self)->np.array:
         return self.q
     
-    def getGripperPosition(self)->np.array:
-        return self.gripper
-    
     def write(self)->None:
-        # self.franka.set_joint_positions(positions=np.concatenate((self.q_desired, self.gripper_desired), axis=0))
-        if self.gripper_mode == True:
-            self.action = ArticulationAction(joint_positions=self.gripper_pose_desired, joint_indices=np.array([7,8]))
-        else:
-            self.action = ArticulationAction(joint_positions=self.q_desired, joint_indices=np.arange(0, 7, 1))
+        self.action = ArticulationAction(joint_positions=self.q_desired)
         self.franka_controller.apply_action(self.action)
-            
-    def getFTdata(self, ft_data:np.array)->None:
-        self.ft_data = ft_data
-        
+
+    def getObsMode(self)->str:
+        return self.obs_mode
+    
+    def getTarMode(self)->str:
+        return self.tar_mode
+
     def record(self, file_name_index:int, duration:float):
-        if self.play_time < self.control_start_time + duration + 1.0:
-            data = str(self.play_time-self.control_start_time) + " " + str(self.ft_data[0,:]*1000)[1:-1] + " " + str(self.ft_data[1,:]*1000)[1:-1] 
-            globals()["self.file_"+str(file_name_index)].write(data + "\n" )
+        pass
+        # if self.play_time < self.control_start_time + duration + 1.0:
+        #     data = str(self.play_time-self.control_start_time) + " " + str(self.ft_data[0,:]*1000)[1:-1] + " " + str(self.ft_data[1,:]*1000)[1:-1] 
+        #     globals()["self.file_"+str(file_name_index)].write(data + "\n" )
             
     def closeFile(self)->None:
         for i in range(len(self.file_names)):

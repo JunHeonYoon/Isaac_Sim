@@ -13,6 +13,8 @@ import select
 import tty
 import termios
 
+
+
 def isData():
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
@@ -23,11 +25,9 @@ hz = 100
 pkg_path = "/home/yoonjunheon/Isaac_Sim/panda_controller"
 world = World(stage_units_in_meters=1.0)
 world.scene.add_default_ground_plane()
-add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand.usd", prim_path="/World/panda")
+add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand_wo_gripper.usd", prim_path="/World/panda")
 world.set_simulation_dt(1/hz, 1/hz) 
 ac = ArmController(hz, world, pkg_path)
-ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
-world.scene.add(ft)
 world.reset()
 
 
@@ -39,12 +39,10 @@ try:
     while (simulation_app.is_running() and (not exit_flag)):
         world.step(render=True)
         ac.UpdateData()
-        ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
         if(is_first):
             is_first = False
             world.reset()
             ac.UpdateData()
-            ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
             print("Initial q : " )
             print(ac.getPosition()) 
             ac.initPosition()
@@ -59,14 +57,51 @@ try:
                 ac.setMode("CLIK Square")
             elif key == '3':
                 ac.setMode("CLIK Eight")
-            elif key == 'o':
-                ac.setMode("gripper_open")
-            elif key == 'c':
-                ac.setMode("gripper_close")
-            elif key == 'g':
-                ac.setMode("pick_up")
             elif key == 'n':
                 ac.setMode("collision_avoidance")
+            elif key == 'm':
+                if ac.getObsMode() == "Stop":
+                    ac.setObsMode("Move")
+                else:
+                    ac.setObsMode("Stop")
+
+
+            # elif key == '\x1  b[A':
+            elif key == 'w':
+                if ac.getTarMode() == "Stop":
+                    ac.setTarMode("Move Up")
+                else:
+                    ac.setTarMode("Stop")
+            # elif key == '\x1b[B':
+            elif key == 's':
+                if ac.getTarMode() == "Stop":
+                    ac.setTarMode("Move Down")
+                else:
+                    ac.setTarMode("Stop")
+            # elif key == '\x1b[D':
+            elif key == 'a':
+                if ac.getTarMode() == "Stop":
+                    ac.setTarMode("Move Left")
+                else:
+                    ac.setTarMode("Stop")
+            # elif key == '\x1b[C':
+            elif key == 'd':
+                if ac.getTarMode() == "Stop":
+                    ac.setTarMode("Move Right")
+                else:
+                    ac.setTarMode("Stop")
+            elif key == 'z':
+                if ac.getTarMode() == "Stop":
+                    ac.setTarMode("Move Forward")
+                else:
+                    ac.setTarMode("Stop")
+            elif key == 'x':
+                if ac.getTarMode() == "Stop":
+                    ac.setTarMode("Move Back")
+                else:
+                    ac.setTarMode("Stop")
+
+
             elif key == 'p':
                 if is_simulation_run:
                     world.pause()  
