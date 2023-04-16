@@ -199,7 +199,9 @@ class ArmController:
             self.record(2, traj_data.shape[0]/self.hz)
   
     def NSDF(self):
-        self.ik.setCurrentStates(self.pose, self.q, self.j)
+        # self.ik.setCurrentStates(self.pose, self.q, self.j)
+        self.ik.setCurrentStates(self.pose, self.q_desired, self.j)
+
         
         cube_position, cube_quat = self.target_cube.get_world_pose()
         cube_rotation = quat2rot(cube_quat)

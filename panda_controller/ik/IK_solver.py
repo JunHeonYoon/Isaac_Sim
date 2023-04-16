@@ -12,9 +12,6 @@ import os
 import matplotlib.pyplot as plt
 from ik.sdf.robot_sdf import RobotSdfCollisionNet
 
-os.environ['QPOASES_VERBOSE'] = 'NO'
-
-
 
 DOF = 7
 NUM_LINKS = 9
@@ -79,7 +76,7 @@ class IKsolver:
         x_lb = DM(np.concatenate([-np.inf*np.ones(6), self.jlb-self.q],axis=0))
         x_ub = DM(np.concatenate([np.inf*np.ones(6), self.jub-self.q],axis=0))
         if np.min(gamma - self.r*100) > 1e-10:
-            a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100) - self.r*100*0.2*np.ones(gamma.shape)],axis=0))
+            a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100*1.2)],axis=0))
             a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9)],axis=0))
             A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T]]))
         else:
