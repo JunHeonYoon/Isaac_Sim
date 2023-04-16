@@ -41,7 +41,7 @@ class ArmController:
         self.initModel()
         self.initObs(0.05)
         self.initFile()
-        self.ik = IK_solver.IKsolver(0.05)
+        self.ik = IK_solver.IKsolver(obs_radius=0.05, hz=self.hz)
              
     def initDimension(self)->None:
         self.q_init = np.zeros(DOF)

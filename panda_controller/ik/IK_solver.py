@@ -17,11 +17,14 @@ DOF = 7
 NUM_LINKS = 9
 
 class IKsolver:
-    def __init__(self, obs_radius:float) -> None:
+    def __init__(self, obs_radius:float, hz:float) -> None:
         self.r = obs_radius
+        self.hz = hz
         self.setNNModel()
         self.setJointLimit(joint_lower_limit=np.array([-2.8973,-1.7628,-2.8973,-3.0718,-2.8973,-0.0175,-2.8973]),
                            joint_upper_limit=np.array([2.8973,1.7628,2.8973,-0.0698,2.8973,3.7525,2.8973]))
+        self.setEEVelocityLimit(vel_min=-np.array([0.2,0.2,0.2,pi/2,pi/2,pi/2]),
+                                vel_max=np.array([0.2,0.2,0.2,pi/2,pi/2,pi/2]))
         self.setWeightMatrix(slack_weight=np.diag(1*np.ones(6)),
                              damping_weight=np.diag(10*np.ones(7)))
     
@@ -42,6 +45,10 @@ class IKsolver:
     def setJointLimit(self, joint_lower_limit:np.array, joint_upper_limit:np.array):
         self.jlb = joint_lower_limit
         self.jub = joint_upper_limit
+
+    def setEEVelocityLimit(self, vel_min:np.array, vel_max:np.array):
+        self.vel_min = vel_min
+        self.vel_max = vel_max
         
     def setWeightMatrix(self, slack_weight:np.array, damping_weight:np.array):
         self.Q = slack_weight
@@ -76,14 +83,14 @@ class IKsolver:
         x_lb = DM(np.concatenate([-np.inf*np.ones(6), self.jlb-self.q],axis=0))
         x_ub = DM(np.concatenate([np.inf*np.ones(6), self.jub-self.q],axis=0))
         if np.min(gamma - self.r*100) > 1e-10:
-            a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100*1.2)],axis=0))
-            a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9)],axis=0))
-            A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T]]))
+            a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100*1.2), self.vel_max],axis=0))
+            a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9), self.vel_min],axis=0))
+            A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T], [np.zeros((6,6)), self.j*self.hz]]))
         else:
             print("\n\n\n\n!!coliision dectation!!\n\n\n")
-            a_ub = DM(x_error)
-            a_lb = DM(x_error)
-            A = DM(np.block([-np.identity(6), self.j]))
+            a_ub = DM(np.concatenate([x_error, self.vel_max], axis=0))
+            a_lb = DM(np.concatenate([x_error, self.vel_min], axis=0))
+            A = DM(np.block([[-np.identity(6), self.j], [np.zeros((6,6)), self.j*self.hz]]))
         qp = {}
         qp['h'] = H.sparsity()
         qp['a'] = A.sparsity()
