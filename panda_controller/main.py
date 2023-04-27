@@ -66,25 +66,21 @@ try:
                     ac.setObsMode("Stop")
 
 
-            # elif key == '\x1  b[A':
             elif key == 'w':
                 if ac.getTarMode() == "Stop":
                     ac.setTarMode("Move Up")
                 else:
                     ac.setTarMode("Stop")
-            # elif key == '\x1b[B':
             elif key == 's':
                 if ac.getTarMode() == "Stop":
                     ac.setTarMode("Move Down")
                 else:
                     ac.setTarMode("Stop")
-            # elif key == '\x1b[D':
             elif key == 'a':
                 if ac.getTarMode() == "Stop":
                     ac.setTarMode("Move Left")
                 else:
                     ac.setTarMode("Stop")
-            # elif key == '\x1b[C':
             elif key == 'd':
                 if ac.getTarMode() == "Stop":
                     ac.setTarMode("Move Right")

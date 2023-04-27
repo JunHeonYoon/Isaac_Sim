@@ -36,12 +36,13 @@ class ArmController:
         self.is_obsmode_changed = False
         self.is_tarmode_changed = False
         self.pkg_path = pkg_path
-        self.file_names = ["Circle", "Square", "Eight"]
+        self.file_names = ["Circle", "Square", "Eight",
+                            "b=1024", "b=50000"]
         self.initDimension()
         self.initModel()
         self.initObs(0.05)
         self.initFile()
-        self.ik = IK_solver.IKsolver(obs_radius=0.05, hz=self.hz)
+        self.ik = IK_solver.IKsolver(obs_radius=0.05, hz=self.hz, barrier_func="RBF")
              
     def initDimension(self)->None:
         self.q_init = np.zeros(DOF)
@@ -85,11 +86,11 @@ class ArmController:
       
     def initObs(self, radius:float)->None:
         self.obstacle = VisualSphere(prim_path="/Obstacle",
-                                     position=[0.3, 0, 0.5],
+                                     position=[0.5, 0, 0.45],
                                      orientation=[0, 0,0, 1],
                                      radius=radius,
                                      color=np.array([1,0,0]))
-        self.obstacle.set_collision_enabled(True)
+        self.obstacle.set_collision_enabled(False)
         
     def initFile(self)->None:
         for i in range(len(self.file_names)):
@@ -226,6 +227,7 @@ class ArmController:
     def TargetMove(self, velocity:float = 1.0, dir:np.array = np.array([1,0,0]))->None:
         del_posi = dir*velocity/self.hz
         self.target_cube.set_local_pose(translation=self.tar_posi + del_posi)
+        self.record(3,7)
   
     def UpdateData(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
@@ -276,6 +278,7 @@ class ArmController:
             self.obs_posi_init = self.obs_posi
             self.obs_dir_sign = 1
         if(self.is_tarmode_changed):
+            self.control_start_time = self.play_time
             self.is_tarmode_changed = False
             
         
@@ -329,12 +332,17 @@ class ArmController:
     def getTarMode(self)->str:
         return self.tar_mode
 
+    # def record(self, file_name_index:int, duration:float):
+    #     pass
+    #     # if self.play_time < self.control_start_time + duration + 1.0:
+    #     #     data = str(self.play_time-self.control_start_time) + " " + str(self.ft_data[0,:]*1000)[1:-1] + " " + str(self.ft_data[1,:]*1000)[1:-1] 
+    #     #     globals()["self.file_"+str(file_name_index)].write(data + "\n" )
     def record(self, file_name_index:int, duration:float):
-        pass
-        # if self.play_time < self.control_start_time + duration + 1.0:
-        #     data = str(self.play_time-self.control_start_time) + " " + str(self.ft_data[0,:]*1000)[1:-1] + " " + str(self.ft_data[1,:]*1000)[1:-1] 
-        #     globals()["self.file_"+str(file_name_index)].write(data + "\n" )
-            
+        if self.play_time < self.control_start_time + duration:
+            data = str(round(self.play_time-self.control_start_time,2))+ " " + str(self.obs_posi)[1:-1] + " " + str(self.tar_posi)[1:-1] + " " + str(self.pose[:3,3])[1:-1]
+            data = data + " "+ str(self.pose[:3,0])[1:-1] + str(self.pose[:3,1])[1:-1] + str(self.pose[:3,2])[1:-1]
+            data  = data + " " + str(self.vel[:3])[1:-1]
+            globals()["self.file_"+str(file_name_index)].write(data + "\n" )
     def closeFile(self)->None:
         for i in range(len(self.file_names)):
             globals()['self.file_'+str(i)].close()

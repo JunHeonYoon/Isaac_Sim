@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import numpy as np
 import time
 import yaml
+import math
 
 import os
 import matplotlib.pyplot as plt
@@ -16,8 +17,20 @@ from ik.sdf.robot_sdf import RobotSdfCollisionNet
 DOF = 7
 NUM_LINKS = 9
 
+# Chiu, J. R., Sleiman, J. P., Mittal, M., Farshidian, F., & Hutter, M. (2022, May). 
+# A collision-free mpc for whole-body dynamic locomotion and manipulation. 
+# In 2022 International Conference on Robotics and Automation (ICRA) (pp. 4686-4693). IEEE.
+def RBF(delta:float, mu:float, h:np.array)->np.array:
+    result = np.zeros(h.shape)
+    for i in range(0,len(h)):
+        if h[i] >= delta:
+            result[i] = -mu*math.log(h[i])
+        else:
+            result[i] = mu*(h[i]**2/(2*delta**2) - 2*h[i]/delta + 1.5 - math.log(delta))
+    return result
+
 class IKsolver:
-    def __init__(self, obs_radius:float, hz:float) -> None:
+    def __init__(self, obs_radius:float, hz:float, barrier_func:str = "log") -> None:
         self.r = obs_radius
         self.hz = hz
         self.setNNModel()
@@ -27,6 +40,7 @@ class IKsolver:
                                 vel_max=np.array([0.2,0.2,0.2,pi/2,pi/2,pi/2]))
         self.setWeightMatrix(slack_weight=np.diag(1*np.ones(6)),
                              damping_weight=np.diag(10*np.ones(7)))
+        self.barrier_func = barrier_func
     
     def setNNModel(self)->None:
         device = torch.device('cpu', 0)
@@ -82,15 +96,25 @@ class IKsolver:
         g = DM.zeros(13)
         x_lb = DM(np.concatenate([-np.inf*np.ones(6), self.jlb-self.q],axis=0))
         x_ub = DM(np.concatenate([np.inf*np.ones(6), self.jub-self.q],axis=0))
-        if np.min(gamma - self.r*100) > 1e-10:
-            a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100*1.2), self.vel_max],axis=0))
-            a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9), self.vel_min],axis=0))
-            A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T], [np.zeros((6,6)), self.j*self.hz]]))
-        else:
-            print("\n\n\n\n!!coliision dectation!!\n\n\n")
-            a_ub = DM(np.concatenate([x_error, self.vel_max], axis=0))
-            a_lb = DM(np.concatenate([x_error, self.vel_min], axis=0))
-            A = DM(np.block([[-np.identity(6), self.j], [np.zeros((6,6)), self.j*self.hz]]))
+        a_lb = DM(np.concatenate([x_error, -np.inf*np.ones(9), self.vel_min],axis=0))
+        A = DM(np.block([[-np.identity(6), self.j], [np.zeros((9,6)), -j_gamma.T], [np.zeros((6,6)), self.j*self.hz]]))
+        if self.barrier_func == "log":
+            if np.min(gamma - self.r*100) > 1e-3:
+                a_ub = DM(np.concatenate([x_error, np.log(gamma-self.r*100*1.3), self.vel_max],axis=0))
+            else:
+                print("\n\n\n\n!!coliision dectation!!\n\n\n")
+                a_ub = DM(np.concatenate([x_error, self.vel_max], axis=0))
+                a_lb = DM(np.concatenate([x_error, self.vel_min], axis=0))
+                A = DM(np.block([[-np.identity(6), self.j], [np.zeros((6,6)), self.j*self.hz]]))
+        if self.barrier_func == "linear":
+            a_ub = DM(np.concatenate([x_error, 1*(gamma-self.r*100*1.3 - 1), self.vel_max],axis=0))
+        if self.barrier_func == "RBF":
+            # print(np.concatenate([x_error, RBF(0.5,1,gamma-self.r*100*1.3), self.vel_max],axis=0))
+            # print(np.concatenate([x_error, np.log(gamma-self.r*100*1.3), self.vel_max],axis=0))
+            a_ub = DM(np.concatenate([x_error, -RBF(0.5,1,gamma-self.r*100*1.3), self.vel_max],axis=0))
+
+            
+        
         qp = {}
         qp['h'] = H.sparsity()
         qp['a'] = A.sparsity()
@@ -113,4 +137,3 @@ class IKsolver:
         
         
         
-    
