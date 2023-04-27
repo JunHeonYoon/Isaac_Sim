@@ -24,4 +24,4 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   
   3. Requirement
   - Pytorch (https://pytorch.org/)
-  - CasAdi (https://web.casadi.org/)
+  - CasAdi (https://web.casadi.org/) : version 3.5.5 recommand
