@@ -1,0 +1,5 @@
+/.vscode
+__pycache__/
+*.py[cod]
+panda_controller/data/*.txt
+husky_controller/data/*.txt
