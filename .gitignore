@@ -3,3 +3,5 @@ __pycache__/
 *.py[cod]
 panda_controller/data/*.txt
 husky_controller/data/*.txt
+panda_controller/ik/build
+panda_controller/ik/build/*
