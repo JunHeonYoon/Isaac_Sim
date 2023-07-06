@@ -28,6 +28,8 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
     conda env create -f isaac_sim.yaml
     conda activate isaac-sim
     ```
+
+    ```
     mkdir -p /usr/anaconda3/envs/isaac-sim/etc/conda/activate.d
     cd /usr/anaconda3/envs/isaac-sim/etc/conda/activate.d
     gedit activate.d
