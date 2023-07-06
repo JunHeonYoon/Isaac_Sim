@@ -23,8 +23,11 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   ```
   
   3. Requirement
-  - Pytorch (https://pytorch.org/)
-  - CasAdi (https://web.casadi.org/) : version 3.5.5 recommand
+  - Conda environment
+    ```
+    conda env create -f isaac_sim.yaml
+    conda activate isaac-sim
+    ```
   - Edit code in Isaac Sim
     ```
     gedit ~/.local/share/ov/pkg/isaac_sim-2022.2.1/exts/omni.isaac.manipulators/omni/isaac/manipulators/single_manipulator.py
