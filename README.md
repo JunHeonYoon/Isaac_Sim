@@ -23,12 +23,12 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   ```
   
   3. Requirement
-  - Conda environment
+  3.1.  Conda environment
     ```
     conda env create -f isaac_sim.yaml
     conda activate isaac-sim
     ```
-  - Edit code in Isaac Sim
+  3.2. Edit code in Isaac Sim
     ```
     gedit ~/.local/share/ov/pkg/isaac_sim-2022.2.1/exts/omni.isaac.manipulators/omni/isaac/manipulators/single_manipulator.py
     ```
@@ -37,3 +37,10 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
     if self._gripper is not None:
             self._gripper.post_reset()
     ```
+  3.3. Make IK shared file(.so) coded by C++
+     ```
+      cd Issac_Sim/panda_controller/ik
+      mkdir build && cd build
+      cmake ..
+      make
+     ```
