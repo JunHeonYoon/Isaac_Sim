@@ -34,7 +34,9 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
     cd /usr/anaconda3/envs/isaac-sim/etc/conda/activate.d
     gedit activate.d
     ```
-
+    
+    Write Script like this
+    
     ```
     #!/bin/bash
     source ~/.local/share/ov/pkg/isaac_sim-2022.2.1/setup_conda_env.sh
