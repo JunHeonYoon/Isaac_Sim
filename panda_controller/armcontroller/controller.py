@@ -59,7 +59,8 @@ class ArmController:
         #                                           gripper_open_position = np.array([0.05, 0.05]),
         #                                           gripper_closed_position = np.array([0.0, 0.0]),))
         self.gripper = ParallelGripper(
-            end_effector_prim_path="/World/panda/panda_rightfinger",
+            # end_effector_prim_path="/World/panda/panda_rightfinger",
+            end_effector_prim_path="/World/panda/panda_hand",
             joint_prim_names=["panda_finger_joint1", "panda_finger_joint2"],
             joint_opened_positions=np.array([0.05, 0.05]),
             joint_closed_positions=np.array([0.0, 0.0]),
@@ -67,7 +68,8 @@ class ArmController:
         )       
         self.franka = self.world.scene.add(SingleManipulator(prim_path="/World/panda", 
                                                              name="franka_robot",
-                                                             end_effector_prim_name="panda_rightfinger",
+                                                            #  end_effector_prim_name="panda_rightfinger",
+                                                             end_effector_prim_name="panda_hand",
                                                              gripper=self.gripper))
         
         self.franka_controller = self.franka.get_articulation_controller()
@@ -108,6 +110,7 @@ class ArmController:
             print("\ntorque : ")
             print(self.torque)
             print("\ngripper position : ")
+            print(self.gripper_pose_desired)
             print(self.gripper_pose)
             print("\nFT data from tips : ")
             print(self.ft_data)
