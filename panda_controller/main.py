@@ -29,9 +29,6 @@ ac = ArmController(hz, world, pkg_path)
 ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
 world.scene.add(ft)
 world.reset()
-# while simulation_app.is_running():
-#     world.step(render=True)
-
 
 is_simulation_run = True
 exit_flag = False
