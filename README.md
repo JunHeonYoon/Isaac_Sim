@@ -32,7 +32,9 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
     ```
     gedit ~/.local/share/ov/pkg/isaac_sim-2022.2.1/exts/omni.isaac.manipulators/omni/isaac/manipulators/single_manipulator.py
     ```
+    
     In 117 line, add like below code
+    
     ```
     if self._gripper is not None:
             self._gripper.post_reset()
