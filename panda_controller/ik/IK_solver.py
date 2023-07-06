@@ -100,6 +100,7 @@ class IKsolver:
         return y_pred_, j_pred_ 
     
     def solveIK(self):
+        tic = time.time()
         gamma, j_gamma = self.getSDF(self.q, self.obs_posi)
         x_error = np.concatenate([self.x_desired[:3,3]-self.x[:3,3], getPhi(self.x[:3,:3], self.x_desired[:3,:3])], axis=0)
         gain = np.diag([5,5,5,1,1,1])
@@ -137,12 +138,9 @@ class IKsolver:
         solver = s(h=H, g=g, a=A, lbx=x_lb, ubx=x_ub, lba=a_lb, uba=a_ub)
         sol = np.array(solver['x'])[:,0]
         self.del_q = sol[6:]
-        
+        toc = time.time()
+        print("Time: {}".format(toc-tic))
 
-        
-        # print(np.matmul(-j_gamma.T, sol[6:]))
-        # print(np.log(gamma-self.r*100))
-        # print("\n\n")
         
 
         

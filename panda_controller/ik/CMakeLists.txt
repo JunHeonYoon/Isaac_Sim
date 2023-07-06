@@ -6,11 +6,15 @@ set(CMAKE_CXX_STANDARD 11)
 # Find Python and Eigen
 # find_package(Python 3.7 REQUIRED COMPONENTS Development)
 # Set the paths to the Python header files and libraries
-set(PYTHON_INCLUDE_DIRS "/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/include/python3.7m")
-set(PYTHON_LIBRARIES "/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/lib/libpython3.so")
+# set(PYTHON_INCLUDE_DIRS "/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/include/python3.7m")
+set(PYTHON_INCLUDE_DIRS "/usr/anaconda3/envs/isaac-sim/include/python3.7m")
+# set(PYTHON_LIBRARIES "/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/lib/libpython3.so")
+set(PYTHON_LIBRARIES "/usr/anaconda3/envs/isaac-sim/lib/libpython3.so")
 # set(PYTHON_LIB_DIR "/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/lib/python3.7/site-packages/NJSDF")
 set(PYTHON_LIB_DIR "/usr/anaconda3/envs/isaac-sim/lib/python3.7/site-packages/NJSDF")
 find_package(Eigen3 REQUIRED)
+find_package(OpenMP REQUIRED)
+
 
 # Include directories
 include_directories(${EIGEN3_INCLUDE_DIRS})
@@ -18,6 +22,8 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 
 # Add your C++ source files here
 set(SOURCES NJSDF.cpp)
+add_compile_options(-O3 -fopenmp -fPIC)
+add_link_options(-fopenmp)
 
 # Create shared library in output directory
 add_library(NJSDF_FUN MODULE ${SOURCES})
