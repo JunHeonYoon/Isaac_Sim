@@ -23,7 +23,7 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   ```
   
   3. Requirement
-  3.1.  Conda environment
+  3.1.   Conda environment
     ```
     conda env create -f isaac_sim.yaml
     conda activate isaac-sim
