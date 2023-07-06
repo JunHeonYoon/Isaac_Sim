@@ -47,19 +47,19 @@ class IKsolver:
         self.barrier_func = barrier_func
     
     def setNNModel(self)->None:
-        device = torch.device('cpu', 0)
-        tensor_args = {'device': device, 'dtype': torch.float32}
+        # device = torch.device('cpu', 0)
+        # tensor_args = {'device': device, 'dtype': torch.float32}
         
-        dof = 10 # 7 for robot joints, 3 for object points
-        s = 256
-        n_layers = 5
-        skips = []
-        if skips == []:
-            n_layers-=1
-        self.nn_model = RobotSdfCollisionNet(in_channels=dof, out_channels=9, layers=[s] * n_layers, skips=skips)
-        model_file_path = os.path.join(python_file_path, 'NNmodel/sdf_256x5_mesh_50000.pt')
-        self.nn_model.load_weights(model_file_path, tensor_args)
-        self.nn_model.model.to(**tensor_args)
+        # dof = 10 # 7 for robot joints, 3 for object points
+        # s = 256
+        # n_layers = 5
+        # skips = []
+        # if skips == []:
+        #     n_layers-=1
+        # self.nn_model = RobotSdfCollisionNet(in_channels=dof, out_channels=9, layers=[s] * n_layers, skips=skips)
+        # model_file_path = os.path.join(python_file_path, 'NNmodel/sdf_256x5_mesh_50000.pt')
+        # self.nn_model.load_weights(model_file_path, tensor_args)
+        # self.nn_model.model.to(**tensor_args)
         NJSDF_FUN.setNeuralNetwork()
 
     def setJointLimit(self, joint_lower_limit:np.array, joint_upper_limit:np.array):
@@ -86,19 +86,18 @@ class IKsolver:
         self.obs_posi = obs_position
         
     def getSDF(self, joint:np.array, obs_position:np.array):
-        x = torch.from_numpy(np.array([np.concatenate([joint, obs_position], axis=0, dtype=np.float32)]))
-        y_pred_, j_pred_, _ = self.nn_model.compute_signed_distance_wgrad(x)
+        # x = torch.from_numpy(np.array([np.concatenate([joint, obs_position], axis=0, dtype=np.float32)]))
+        # y_pred, j_pred, _ = self.nn_model.compute_signed_distance_wgrad(x)
         NJSDF_FUN.setNetworkInput(np.concatenate([joint, obs_position], axis=0))
-        y_pred, j_pred = NJSDF_FUN.calculateMlpOutput()
-        print(j_pred)
-        j_pred = j_pred.T
-        y_pred_ = y_pred_.cpu().detach().numpy()[0]
-        j_pred_ = j_pred_.cpu().detach().numpy()[0, 0:7]
-        print(y_pred_)
-        print(y_pred)
-        print(j_pred_)
-        print(j_pred)
-        return y_pred, j_pred 
+        y_pred_, j_pred_ = NJSDF_FUN.calculateMlpOutput(False)
+        j_pred_ = j_pred_.T[0:7]
+        # y_pred = y_pred.cpu().detach().numpy()[0]
+        # j_pred = j_pred.cpu().detach().numpy()[0, 0:7]
+        # print(y_pred_)
+        # print(y_pred)
+        # print(j_pred_)
+        # print(j_pred)
+        return y_pred_, j_pred_ 
     
     def solveIK(self):
         gamma, j_gamma = self.getSDF(self.q, self.obs_posi)

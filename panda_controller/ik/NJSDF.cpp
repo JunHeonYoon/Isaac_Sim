@@ -199,22 +199,31 @@ void setNetworkInput(Eigen::VectorXd input)
     // std::cout<< "INPUT DATA:"<< std::endl <<njsdf_.input.transpose() << std::endl;
 }
 
-std::pair<Eigen::VectorXd, Eigen::MatrixXd> calculateMlpOutput()
+std::pair<Eigen::VectorXd, Eigen::MatrixXd> calculateMlpOutput(bool time_verbose)
 {
+    std::vector<clock_t> start, finish;
+    start.resize(3*njsdf_.n_layer);
+    finish.resize(3*njsdf_.n_layer);
 
+    start[3*njsdf_.n_layer - 1] = clock(); // Total 
     Eigen::MatrixXd temp_derivative;
     for (int layer = 0; layer < njsdf_.n_layer; layer++)
     {
         if (layer == 0) // input layer
         {
+            start[0] = clock(); // Linear 
             if (njsdf_.is_nerf) njsdf_.hidden[0] = njsdf_.weight[0] * njsdf_.input_nerf + njsdf_.bias[0];
             else                njsdf_.hidden[0] = njsdf_.weight[0] * njsdf_.input + njsdf_.bias[0];
-            
+            finish[0] = clock();
+
+            start[1] = clock(); // ReLU
             for (int h = 0; h < njsdf_.n_hidden(layer); h++)
             {
                 njsdf_.hidden_derivative[0].row(h) = ReLU_derivative(njsdf_.hidden[0](h)) * njsdf_.weight[0].row(h); //derivative wrt input
                 njsdf_.hidden[0](h) = ReLU(njsdf_.hidden[0](h));                                                     //activation function
             }
+            finish[1] = clock();
+
             if (njsdf_.is_nerf)
             {
                 Eigen::MatrixXd nerf_jac;
@@ -222,7 +231,10 @@ std::pair<Eigen::VectorXd, Eigen::MatrixXd> calculateMlpOutput()
                 nerf_jac.block(0 * njsdf_.n_input, 0, njsdf_.n_input, njsdf_.n_input) = Eigen::MatrixXd::Identity(njsdf_.n_input, njsdf_.n_input);
                 nerf_jac.block(1 * njsdf_.n_input, 0, njsdf_.n_input, njsdf_.n_input).diagonal() <<   njsdf_.input.array().cos();
                 nerf_jac.block(2 * njsdf_.n_input, 0, njsdf_.n_input, njsdf_.n_input).diagonal() << - njsdf_.input.array().sin();
+                
+                start[2] = clock(); // Multip
                 temp_derivative = njsdf_.hidden_derivative[0] * nerf_jac;
+                finish[2] = clock();
             }
             else
             {
@@ -231,20 +243,57 @@ std::pair<Eigen::VectorXd, Eigen::MatrixXd> calculateMlpOutput()
         }
         else if (layer == njsdf_.n_layer - 1) // output layer
         {
+            start[layer*3] = clock(); // Linear
             njsdf_.output = njsdf_.weight[layer] * njsdf_.hidden[layer - 1] + njsdf_.bias[layer];
+            finish[layer*3] = clock(); 
+
+            start[layer*3+1] = clock(); // Multip
             njsdf_.output_derivative = njsdf_.weight[layer] * temp_derivative;
+            finish[layer*3+1] = clock();
         }
         else // hidden layers
         {
+            start[layer*3] = clock(); // Linear
             njsdf_.hidden[layer] = njsdf_.weight[layer] * njsdf_.hidden[layer - 1] + njsdf_.bias[layer];
+            finish[layer*3] = clock();
+            
+            start[layer*3+1] = clock(); // ReLU
             for (int h = 0; h < njsdf_.n_hidden(layer); h++)
             {
                 njsdf_.hidden_derivative[layer].row(h) = ReLU_derivative(njsdf_.hidden[layer](h)) * njsdf_.weight[layer].row(h); //derivative wrt input
                 njsdf_.hidden[layer](h) = ReLU(njsdf_.hidden[layer](h));                                                         //activation function
             }
+            finish[layer*3+1] = clock();
+
+            start[3*layer+2] = clock(); //Multip
             temp_derivative = njsdf_.hidden_derivative[layer] * temp_derivative;
+            finish[3*layer+2] = clock();
         }
     }
+
+    finish[3*njsdf_.n_layer - 1] = clock();
+
+    if(time_verbose)
+    {
+        std::cout<<"------------------Time[1e-6]------------------"<<std::endl;
+        for (int layer = 0; layer < njsdf_.n_layer; layer++)
+        {
+            if(layer == njsdf_.n_layer - 1)
+            {
+                std::cout<<"Layer "<<layer<<" -Linear: "<<double(finish[3*layer+0]-start[3*layer+0])<<std::endl;
+                std::cout<<"Layer "<<layer<<" -Multip: "<<double(finish[3*layer+1]-start[3*layer+1])<<std::endl;
+                std::cout<<"Total          : "          <<double(finish[3*layer+2]-start[3*layer+2])<<std::endl;
+            }
+            else
+            {
+                std::cout<<"Layer "<<layer<<" -Linear: "<<double(finish[3*layer+0]-start[3*layer+0])<<std::endl;
+                std::cout<<"Layer "<<layer<<" -ReLU  : "<<double(finish[3*layer+1]-start[3*layer+1])<<std::endl;
+                std::cout<<"Layer "<<layer<<" -Multip: "<<double(finish[3*layer+2]-start[3*layer+2])<<std::endl;
+            }
+        }
+        std::cout<<"------------------------------------------------"<<std::endl;
+    }
+
     return std::make_pair(njsdf_.output, njsdf_.output_derivative); 
     // std::cout<< "OUTPUT DATA:"<< std::endl <<njsdf_.output.transpose() << std::endl;
     // std::cout<< "OUTPUT DATA:"<< std::endl <<njsdf_.output_derivative << std::endl;
@@ -259,5 +308,4 @@ PYBIND11_MODULE(libNJSDF_FUN, m)
     m.def("setNetworkInput", &setNetworkInput, "setNetworkInput");
     m.def("calculateMlpOutput", &calculateMlpOutput, "calculateMlpOutput");
 }
-// g++ -O3 -Wall -shared -std=c++11 -fPIC `python3.7 -m pybind11 --includes` NJSDF.cpp -o NJSDF_FUN.so
-// g++ -O3 -Wall -shared -std=c++11 -fPIC -I'/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/include' NJSDF.cpp -o NJSDF_FUN.so -L'/home/yoonjunheon/.local/share/ov/pkg/isaac_sim-2022.2.1/kit/python/lib' -lpython3.7m
+// g++ -O3 -Wall -shared -std=c++11 -fPIC `python3 -m pybind11 --includes` NJSDF.cpp -o NJSDF_FUN.so
