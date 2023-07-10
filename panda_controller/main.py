@@ -23,7 +23,7 @@ hz = 100
 pkg_path = "/home/yoonjunheon/Isaac_Sim/panda_controller"
 world = World(stage_units_in_meters=1.0)
 world.scene.add_default_ground_plane()
-add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand.usd", prim_path="/World/panda")
+add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand_rev.usd", prim_path="/World/panda")
 world.set_simulation_dt(1/hz, 1/hz) 
 ac = ArmController(hz, world, pkg_path)
 ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
@@ -38,17 +38,31 @@ try:
     while (simulation_app.is_running() and (not exit_flag)):
         world.step(render=True)
         ac.UpdateData()
-        ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
+        ac.setFTdata(ft._physics_view.get_force_sensor_forces()[0])
         if(is_first):
             world.reset()
             ac.UpdateData()
-            ac.getFTdata(ft._physics_view.get_force_sensor_forces()[0])
+            ac.setFTdata(ft._physics_view.get_force_sensor_forces()[0])
             print("Initial q : " )
             print(ac.getPosition()) 
             is_first = False
             ac.initPosition()
         if isData():
             key = sys.stdin.read(1)
+
+            if ac.isTeleop():
+                if key == 'w':
+                    ac.setTeleMode("move_forward")
+                elif key == 's':
+                    ac.setTeleMode("move_backward")
+                elif key == 'a':
+                    ac.setTeleMode("move_left")
+                elif key == 'd':
+                    ac.setTeleMode("move_right")
+                elif key == 'q':
+                    ac.setTeleMode("move_upward")
+                elif key == 'e':
+                    ac.setTeleMode("move_downward")
 
             if key == 'i':
                 ac.setMode("joint_ctrl_init")
@@ -64,6 +78,11 @@ try:
                 ac.setMode("gripper_close")
             elif key == 'g':
                 ac.setMode("pick_up")
+            elif key == 'k':
+                if not ac.isTeleop():
+                    ac.setTeleopMode(True)
+                else:
+                    ac.setTeleopMode(False)
             elif key == 'p':
                 if is_simulation_run:
 
@@ -75,12 +94,17 @@ try:
                     world.play()
                     print("Simulation Play")
                     is_simulation_run = True
-            elif key == 'q':
+            elif key == '\x1b': # x1b is ESC
                 is_simulation_run = False
                 exit_flag = True
+        else:
+            ac.setTeleMode(" ")
             
         if is_simulation_run:
-            ac.compute()
+            if ac.isTeleop():
+                ac.teleoperation()
+            else:
+                ac.compute()
             ac.write()
 finally:
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)

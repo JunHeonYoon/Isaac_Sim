@@ -25,6 +25,7 @@ class ArmController:
         self.is_mode_changed = False
         self.pkg_path = pkg_path
         self.file_names = ["Circle", "Square", "Eight"]
+        self.is_teleop = False
         self.initDimension()
         self.initModel()
         self.initCube()
@@ -80,7 +81,7 @@ class ArmController:
         joints_default_positions[5] = math.pi/2
         joints_default_positions[6] = math.pi/4
 
-        self.franka.set_joints_default_state(positions=joints_default_positions)
+        # self.franka.set_joints_default_state(positions=joints_default_positions)
         self.franka.gripper.set_default_state(self.franka.gripper.joint_opened_positions)
     
     def initCube(self)->None:
@@ -211,11 +212,13 @@ class ArmController:
   
     def setGripperOpen(self)->None:
         self.gripper_mode = True
-        self.gripper_pose_desired = self.gripper_pose + np.array([0.05, 0.05])
+        # self.gripper_pose_desired = self.gripper_pose + np.array([0.05, 0.05])
+        self.gripper_pose_desired = np.array([0.04, 0.04])
         
     def setGripperClose(self)->None:
         self.gripper_mode = True
-        self.gripper_pose_desired = self.gripper_pose - np.array([0.05, 0.05])
+        # self.gripper_pose_desired = self.gripper_pose - np.array([0.05, 0.05])
+        self.gripper_pose_desired = np.array([0.0, 0.0])
   
     def UpdateData(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
@@ -233,6 +236,10 @@ class ArmController:
         self.is_mode_changed = True
         self.control_mode = mode
         print("Current mode (changed) : "+self.control_mode)
+
+    def setTeleMode(self, mode:str)->None:
+        self.is_telemode_changed = True
+        self.tele_mode = mode
         
     def compute(self)->None:
         self.q = self.franka.get_joint_positions()[:7]
@@ -306,6 +313,37 @@ class ArmController:
         self.printState()
         self.play_time = self.world.current_time
         self.tick = self.world.current_time_step_index
+
+    def teleoperation(self)->None:
+        self.q = self.franka.get_joint_positions()[:7]
+        self.j = self.kinematic.jacobian(cspace_position=self.q.astype(np.float64), frame="panda_hand")
+        self.j_qd = self.kinematic.jacobian(cspace_position=self.q_desired.astype(np.float64), frame="panda_hand")
+        self.pose = self.kinematic.pose(cspace_position=self.q.astype(np.float64), frame="panda_hand").matrix()
+        self.pose_qd = self.kinematic.pose(cspace_position=self.q_desired.astype(np.float64), frame="panda_hand").matrix()
+        self.vel = np.dot(self.j, self.qd) 
+        
+        if(self.is_telemode_changed):
+            self.is_telemode_changed = False
+
+        pseudo_j_inv = np.dot( self.j_qd.T, np.linalg.inv( np.dot(self.j_qd, self.j_qd.T) ) )
+        qd_desired = np.zeros(7)
+        if(self.tele_mode == "move_forward"):
+            qd_desired = np.dot(pseudo_j_inv, np.array([0.2, 0, 0, 0, 0, 0]))
+        elif(self.tele_mode == "move_backward"):
+            qd_desired = np.dot(pseudo_j_inv, np.array([-0.2, 0, 0, 0, 0, 0]))
+        elif(self.tele_mode == "move_left"):
+            qd_desired = np.dot(pseudo_j_inv, np.array([0, 0.2, 0, 0, 0, 0]))
+        elif(self.tele_mode == "move_right"):
+            qd_desired = np.dot(pseudo_j_inv, np.array([0, -0.2, 0, 0, 0, 0]))
+        elif(self.tele_mode == "move_upward"):
+            qd_desired = np.dot(pseudo_j_inv, np.array([0, 0, 0.2, 0, 0, 0]))
+        elif(self.tele_mode == "move_downward"):
+            qd_desired = np.dot(pseudo_j_inv, np.array([0, 0, -0.2, 0, 0, 0]))
+        self.q_desired = self.q_desired + qd_desired/self.hz
+
+        self.printState()
+        self.play_time = self.world.current_time
+        self.tick = self.world.current_time_step_index
         
     def getPosition(self)->np.array:
         return self.q
@@ -321,9 +359,15 @@ class ArmController:
             self.action = ArticulationAction(joint_positions=self.q_desired, joint_indices=np.arange(0, 7, 1))
         self.franka_controller.apply_action(self.action)
             
-    def getFTdata(self, ft_data:np.array)->None:
+    def setFTdata(self, ft_data:np.array)->None:
         self.ft_data = ft_data
         
+    def isTeleop(self)->bool:
+        return self.is_teleop
+
+    def setTeleopMode(self, teleop_mode:bool)->None:
+        self.is_teleop = teleop_mode
+
     def record(self, file_name_index:int, duration:float):
         if self.play_time < self.control_start_time + duration + 1.0:
             data = str(self.play_time-self.control_start_time) + " " + str(self.ft_data[0,:]*1000)[1:-1] + " " + str(self.ft_data[1,:]*1000)[1:-1] 
