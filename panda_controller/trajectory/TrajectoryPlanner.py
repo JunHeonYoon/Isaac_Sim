@@ -1,8 +1,11 @@
+DOF = 7
 import numpy as np
 import pandas as pd 
+import numpy.matlib as ml
 import os
+import matplotlib.pyplot as plt
 
-import ForwadKinematics as FK
+import trajectory.ForwadKinematics as FK
 
 class TrajectoryPlanner:
     def __init__(self, traj_type:str, Hz:float) -> None:
@@ -50,9 +53,13 @@ class TrajectoryPlanner:
 
     def setInitialJoint(self, init_joint:np.array) -> None:
         self.init_joint = init_joint
+        init_pose = FK.calculateFK(self.init_joint)
+        init_x = init_pose[:3,3].T
+        self.x_desired = self.x_desired + ml.repmat(init_x, self.total_time, 1)
+        
     
     def calculateDesiredJoint(self) -> None:
-        self.q_desired = self.init_joint
+        self.q_desired = self.init_joint.reshape(1,DOF)
         self.j_desired = np.array([])
         kp = np.zeros((6,6))
         np.fill_diagonal(kp, val=[50, 50, 50, 10, 10, 10])
@@ -63,13 +70,19 @@ class TrajectoryPlanner:
             xd_desired = np.append(xd_desired.reshape(3,1), np.zeros([3,1]), axis=0) # NO rotation
             x = FK.calculateFK(self.q_desired[-1,:]) 
             x = np.append(x[:3,3].reshape(3,1), np.zeros([3,1]), axis=0) # NO rotation
+            # print(x)
             J = FK.calculateJac(self.q_desired[-1,:])
             if self.j_desired.size == 0:
-                self.j_desired = J.reshape(1,6,7)
+                self.j_desired = J.reshape(1,6,DOF)
             else:
-                self.j_desired = np.append(self.j_desired, J.reshape(1,6,7), axis=0)
+                self.j_desired = np.append(self.j_desired, J.reshape(1,6,DOF), axis=0)
             J_pinv = J.T @ np.linalg.inv(J @ J.T)
             qd_desired = J_pinv @ (xd_desired + kp @ (x_desired - x))
-            q_desired = qd_desired[-1,:] + qd_desired * self.dt
+            q_desired = self.q_desired[-1,:].reshape(DOF,1) + qd_desired * self.dt
             self.q_desired = np.concatenate([self.q_desired, q_desired.T], axis=0)
         self.q_desired = self.q_desired[:-1,:]
+
+        for i in range(DOF):
+            plt.subplot(DOF,1,i+1)
+            plt.plot(self.q_desired[:,i])
+        plt.show()

@@ -53,53 +53,6 @@ try:
             key = sys.stdin.read(1)
             if key == 'i':
                 ac.setMode("joint_ctrl_init")
-            elif key == '1':
-                ac.setMode("CLIK Circle")
-            elif key == '2':
-                ac.setMode("CLIK Square")
-            elif key == '3':
-                ac.setMode("CLIK Eight")
-            elif key == 'n':
-                ac.setMode("collision_avoidance")
-            elif key == 'm':
-                if ac.getObsMode() == "Stop":
-                    ac.setObsMode("Move")
-                else:
-                    ac.setObsMode("Stop")
-
-
-            elif key == 'w':
-                if ac.getTarMode() == "Stop":
-                    ac.setTarMode("Move Up")
-                else:
-                    ac.setTarMode("Stop")
-            elif key == 's':
-                if ac.getTarMode() == "Stop":
-                    ac.setTarMode("Move Down")
-                else:
-                    ac.setTarMode("Stop")
-            elif key == 'a':
-                if ac.getTarMode() == "Stop":
-                    ac.setTarMode("Move Left")
-                    # ac.setObsMode("Move")
-                else:
-                    ac.setTarMode("Stop")
-            elif key == 'd':
-                if ac.getTarMode() == "Stop":
-                    ac.setTarMode("Move Right")
-                else:
-                    ac.setTarMode("Stop")
-            elif key == 'z':
-                if ac.getTarMode() == "Stop":
-                    ac.setTarMode("Move Forward")
-                else:
-                    ac.setTarMode("Stop")
-            elif key == 'x':
-                if ac.getTarMode() == "Stop":
-                    ac.setTarMode("Move Back")
-                else:
-                    ac.setTarMode("Stop")
-
 
             elif key == 'p':
                 if is_simulation_run:
@@ -110,6 +63,9 @@ try:
                     world.play()
                     print("Simulation Play")
                     is_simulation_run = True
+            elif key == 'm':
+                ac.setMode("MPC_tracking")    
+        
             elif key == '\x1b': # x1b is ESC
                 is_simulation_run = False
                 exit_flag = True  
