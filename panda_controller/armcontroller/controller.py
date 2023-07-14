@@ -11,6 +11,7 @@ import math_type_define.dyros_math as DyrosMath
 import math
 import mpc.MPC_solver as MPC_solver
 import trajectory.TrajectoryPlanner as TrajectoryPlanner
+import time
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -164,7 +165,10 @@ class ArmController:
             
             self.MPCcontroller.setCurrentStates(self.q)
             self.MPCcontroller.formulateOCP(self.tick - self.tick_init, self.q_before, self.q_bbefore)
+            tic = time.time()
             self.MPCcontroller.solveOCP()
+            toc = time.time()
+            print("{} tick Time:{}".format(self.tick - self.tick_init, toc-tic))
             self.q_desired = self.MPCcontroller.getOptimalJoint()
             self.q_before = self.q
             self.q_bbefore = self.q_before

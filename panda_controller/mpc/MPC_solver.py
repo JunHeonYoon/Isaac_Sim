@@ -26,9 +26,9 @@ class MPCsolver:
                            joint_upper_limit=np.array([2.8973,1.7628,2.8973,-0.0698,2.8973,3.7525,2.8973]))
         self.setJointVelocityLimit(vel_min=-np.array([2.1750,2.1750,2.1750,2.1750,2.61,2.61,2.61]),
                                    vel_max=np.array([2.1750,2.1750,2.1750,2.1750,2.61,2.61,2.61]))
-        self.setWeightMatrix(x_error_weight=np.diag(1*np.ones(6)),
-                             qd_weight=np.diag(10*np.ones(7)),
-                             qdd_weight=np.diag(10*np.ones(7)))
+        self.setWeightMatrix(x_error_weight=np.diag(10*np.ones(6)),
+                             qd_weight=np.diag(0.0001*np.ones(7)),
+                             qdd_weight=np.diag(0.0001*np.ones(7)))
 
     def setJointLimit(self, joint_lower_limit:np.array, joint_upper_limit:np.array):
         self.jlb = joint_lower_limit.reshape(DOF,1)
@@ -53,6 +53,13 @@ class MPCsolver:
     def formulateOCP(self, current_idx:int, q_before:np.array, q_bbefore:np.array):
         q_before = q_before.reshape(DOF,1)
         q_bbefore = q_bbefore.reshape(DOF,1)
+        self.current_idx = current_idx
+
+        if self.current_idx + self.N > len(self.total_q_desired_set) - 1:
+            if self.current_idx >= len(self.total_q_desired_set) - 1:
+                return 0
+            else:
+                self.N = len(self.total_q_desired_set) - self.current_idx
 
         # q_dot = Sv * q + v
         Sv = np.kron(np.eye(self.N), np.eye(DOF)) + np.kron(np.eye(self.N, k=-1), -np.eye(DOF))
@@ -69,18 +76,18 @@ class MPCsolver:
         a[DOF:2*DOF] = q_before
         # print("a: {}".format(a.shape))
 
-        if current_idx == 0:
+        if self.current_idx == 0:
             Sv[0:DOF,0:DOF] = np.zeros((DOF,DOF))
             Sa[0:DOF,0:DOF] = np.zeros((DOF,DOF))
             Sa[DOF:2*DOF,0:DOF] = -np.eye(DOF)
-        elif current_idx == 1:
+        elif self.current_idx == 1:
             a[0:DOF] = -q_before
         Sv = Sv * self.hz
         v = v * self.hz
         Sa = Sa * self.hz**2
         a = a * self.hz**2
 
-        # WEight matrix term
+        # Weight matrix term
         Qe = np.kron(np.eye(self.N), self.Qe)
         Qd = np.kron(np.eye(self.N), self.Qd)
         Qa = np.kron(np.eye(self.N), self.Qa)
@@ -89,8 +96,8 @@ class MPCsolver:
         # print("Qa: {}".format(Qa.shape))
 
         # Nominal Jacobian & q term
-        J = np.array(linalg.block_diag(*self.total_j_desired_set[current_idx:current_idx + self.N]))
-        q = self.total_q_desired_set[current_idx:current_idx + self.N].reshape(self.N*DOF,1)
+        J = np.array(linalg.block_diag(*self.total_j_desired_set[self.current_idx:self.current_idx + self.N]))
+        q = self.total_q_desired_set[self.current_idx:self.current_idx + self.N].reshape(self.N*DOF,1)
         # print("J: {}".format(J.shape))
         # print("q: {}".format(q.shape))
         # QP parameter
@@ -110,6 +117,8 @@ class MPCsolver:
         self.Sv = Sv
 
     def solveOCP(self):  
+        if self.current_idx >= len(self.total_q_desired_set) - 1:
+            return 0
         H = DM(self.Q)
         g = DM(self.p)
         x_lb = DM(self.q_min)
@@ -129,7 +138,7 @@ class MPCsolver:
         self.opt_q = sol[DOF:2*DOF]
         
     def getOptimalJoint(self)->np.array:
-        print("opt: {}".format(self.opt_q))
+        # print("opt: {}".format(self.opt_q))
         return self.opt_q
         
         

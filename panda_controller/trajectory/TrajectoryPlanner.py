@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd 
 import numpy.matlib as ml
 import os
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 import trajectory.ForwadKinematics as FK
 
@@ -81,8 +81,3 @@ class TrajectoryPlanner:
             q_desired = self.q_desired[-1,:].reshape(DOF,1) + qd_desired * self.dt
             self.q_desired = np.concatenate([self.q_desired, q_desired.T], axis=0)
         self.q_desired = self.q_desired[:-1,:]
-
-        for i in range(DOF):
-            plt.subplot(DOF,1,i+1)
-            plt.plot(self.q_desired[:,i])
-        plt.show()
