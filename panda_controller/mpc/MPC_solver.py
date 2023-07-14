@@ -29,6 +29,7 @@ class MPCsolver:
         self.setWeightMatrix(x_error_weight=np.diag(10*np.ones(6)),
                              qd_weight=np.diag(0.0001*np.ones(7)),
                              qdd_weight=np.diag(0.0001*np.ones(7)))
+        self.q_set_warm_start = np.zeros((DOF*self.N, 1))
 
     def setJointLimit(self, joint_lower_limit:np.array, joint_upper_limit:np.array):
         self.jlb = joint_lower_limit.reshape(DOF,1)
@@ -45,6 +46,7 @@ class MPCsolver:
         
     def setCurrentStates(self,joints:np.array):
         self.q = joints.reshape(DOF,1)
+        self.q_set_warm_start[:DOF] = self.q
 
     def setDesiredTraectory(self, total_q_desired_set:np.array, total_j_desired_set:np.array):
         self.total_q_desired_set = total_q_desired_set
@@ -126,6 +128,7 @@ class MPCsolver:
         a_lb = DM(self.qd_min - self.v)
         a_ub = DM(self.qd_max - self.v)
         A = DM(self.Sv)
+        x0 = DM(self.q_set_warm_start)
         qp = {}
         qp['h'] = H.sparsity()
         qp['a'] = A.sparsity()
@@ -133,9 +136,11 @@ class MPCsolver:
         opts['printLevel'] = 'none'
         
         s = conic('solver', 'qpoases', qp, opts)
-        solver = s(h=H, g=g, a=A, lbx=x_lb, ubx=x_ub, lba=a_lb, uba=a_ub)
+        solver = s(h=H, g=g, a=A, lbx=x_lb, ubx=x_ub, lba=a_lb, uba=a_ub, x0=x0)
         sol = np.array(solver['x'])[:,0]
         self.opt_q = sol[DOF:2*DOF]
+        self.q_set_warm_start = np.concatenate([sol[DOF:], sol[DOF*(self.N-1):]]).reshape(DOF*self.N,1)
+        print(self.q_set_warm_start.shape)
         
     def getOptimalJoint(self)->np.array:
         # print("opt: {}".format(self.opt_q))
