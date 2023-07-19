@@ -29,7 +29,7 @@ world = World(stage_units_in_meters=1.0)
 world.scene.add_default_ground_plane()
 add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand_wo_gripper.usd", prim_path="/World/panda")
 world.set_simulation_dt(1/hz, 1/hz) 
-ac = ArmController(hz, world, pkg_path)
+ac = ArmController(hz, world, pkg_path, is_ros=True)
 world.reset()
 
 

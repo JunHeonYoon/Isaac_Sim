@@ -11,7 +11,12 @@ import math_type_define.dyros_math as DyrosMath
 import math
 import mpc.MPC_solver as MPC_solver
 import trajectory.TrajectoryPlanner as TrajectoryPlanner
+import trajectory.ForwadKinematics as ForwadKinematics
 import time
+import rospy
+from sensor_msgs.msg import JointState
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -23,7 +28,7 @@ def quat2rot(quat):
     return r.as_matrix()
 
 class ArmController:
-    def __init__(self, hz: float, world: World, pkg_path: str)->None: 
+    def __init__(self, hz: float, world: World, pkg_path: str, is_ros: bool = False)->None: 
         self.hz = hz
         self.world = world
         self.tick = 0
@@ -35,9 +40,13 @@ class ArmController:
         self.initDimension()
         self.initModel()
         self.initFile()
-        self.TrajectoyPlanner = TrajectoryPlanner.TrajectoryPlanner(traj_type="circle", Hz=self.hz)
-        self.MPCcontroller = MPC_solver.MPCsolver(self.hz, receding_horizon=10)
-             
+        self.TrajectoryPlanner = TrajectoryPlanner.TrajectoryPlanner(traj_type="circle", Hz=self.hz)
+        self.receding_horizon = 30
+        self.MPCcontroller = MPC_solver.MPCsolver(self.hz, receding_horizon=self.receding_horizon)
+        self.is_ros = is_ros
+        if self.is_ros:
+            self.initROS()
+
     def initDimension(self)->None:
         self.q_init = np.zeros(DOF)
         self.q = np.zeros(DOF)
@@ -70,6 +79,25 @@ class ArmController:
         for i in range(len(self.file_names)):
             file_path = self.pkg_path + "/data/" + self.file_names[i] + ".txt"
             globals()['self.file_'+str(i)] = open(file_path, "w")
+
+    def initROS(self)->None:
+        rospy.init_node("panda_controller_node")
+        self.joint_pub = rospy.Publisher("/joint_states", JointState, queue_size=10)
+        self.global_path_pub = rospy.Publisher("/global_path", Path, queue_size=10)
+        self.local_path_pub = rospy.Publisher("/local_path", Path, queue_size=10)
+        self.ros_joint = JointState()
+        self.ros_joint.name = ["panda_joint1",
+                               "panda_joint2",
+                               "panda_joint3",
+                               "panda_joint4",
+                               "panda_joint5",
+                               "panda_joint6",
+                               "panda_joint7",]
+        self.ros_global_path = Path()
+        self.ros_global_path.header.frame_id = "panda_link0"
+        self.ros_local_path = Path()
+        self.ros_local_path.header.frame_id = "panda_link0"
+
 
     def printState(self)->None:
         if( self.world.current_time_step_index % 50 == 0 ):
@@ -125,6 +153,18 @@ class ArmController:
         self.q = self.franka.get_joint_positions()[:7]
         self.qd = self.franka.get_joint_velocities()[:7]
         self.torque = self.franka.get_applied_joint_efforts()[:7]
+        if self.is_ros:
+            self.ros_joint.header.stamp.secs = rospy.get_rostime().secs
+            self.ros_joint.header.stamp.nsecs = rospy.get_rostime().nsecs
+            self.ros_joint.position = self.q
+            self.ros_global_path.header.stamp.secs = rospy.get_rostime().secs
+            self.ros_global_path.header.stamp.nsecs = rospy.get_rostime().nsecs
+            self.ros_local_path.header.stamp.secs = rospy.get_rostime().secs
+            self.ros_local_path.header.stamp.nsecs = rospy.get_rostime().nsecs
+            self.joint_pub.publish(self.ros_joint)
+            self.global_path_pub.publish(self.ros_global_path)
+            self.local_path_pub.publish(self.ros_local_path)
+
                  
     def initPosition(self)->None:
         self.q_init = self.q
@@ -150,6 +190,9 @@ class ArmController:
             self.qd_init = self.qd
             self.pose_init = self.pose
             self.tick_init = self.tick
+            self.TrajectoryPlanner.ReadTrajData()
+            self.MPCcontroller.N = self.receding_horizon
+            self.MPCcontroller.q_set_warm_start = np.zeros((DOF*self.MPCcontroller.N, 1))
             
         
         if(self.control_mode == "joint_ctrl_init"):
@@ -157,17 +200,42 @@ class ArmController:
             self.moveJointPosition(target_q, 1)
         elif(self.control_mode == "MPC_tracking"):
             if self.tick - self.tick_init == 0:
-                self.TrajectoyPlanner.setInitialJoint(self.q_init)
-                self.TrajectoyPlanner.calculateDesiredJoint()
-                self.MPCcontroller.setDesiredTraectory(self.TrajectoyPlanner.q_desired, self.TrajectoyPlanner.j_desired)
+                self.TrajectoryPlanner.setInitialJoint(self.q_init)
+                self.TrajectoryPlanner.calculateDesiredJoint()
+                self.MPCcontroller.setDesiredTraectory(self.TrajectoryPlanner.q_desired, self.TrajectoryPlanner.j_desired)
                 self.q_before = np.zeros(DOF)
                 self.q_bbefore = np.zeros(DOF)
+                if self.is_ros:
+                    self.ros_global_path.poses = []
+                    for i in range(self.TrajectoryPlanner.total_time):
+                        pose = PoseStamped()
+                        pose.pose.position.x = self.TrajectoryPlanner.x_desired[i,0]
+                        pose.pose.position.y = self.TrajectoryPlanner.x_desired[i,1]
+                        pose.pose.position.z = self.TrajectoryPlanner.x_desired[i,2]
+                        pose.pose.orientation.x = 0
+                        pose.pose.orientation.y = 0
+                        pose.pose.orientation.z = 0
+                        pose.pose.orientation.w = 1
+                        self.ros_global_path.poses.append(pose)
             
             self.MPCcontroller.setCurrentStates(self.q)
             self.MPCcontroller.formulateOCP(self.tick - self.tick_init, self.q_before, self.q_bbefore)
             tic = time.time()
             self.MPCcontroller.solveOCP()
             toc = time.time()
+            if self.is_ros:
+                self.ros_local_path.poses = []
+                for i in range(self.MPCcontroller.N):
+                            pose = PoseStamped()
+                            fk_pose = ForwadKinematics.calculateFK(self.MPCcontroller.opt_q_set[i])
+                            pose.pose.position.x = fk_pose[0,3]
+                            pose.pose.position.y = fk_pose[1,3]
+                            pose.pose.position.z = fk_pose[2,3]
+                            pose.pose.orientation.x = 0
+                            pose.pose.orientation.y = 0
+                            pose.pose.orientation.z = 0
+                            pose.pose.orientation.w = 1
+                            self.ros_local_path.poses.append(pose)
             print("{} tick Time:{}".format(self.tick - self.tick_init, toc-tic))
             self.q_desired = self.MPCcontroller.getOptimalJoint()
             self.q_before = self.q

@@ -26,9 +26,9 @@ class MPCsolver:
                            joint_upper_limit=np.array([2.8973,1.7628,2.8973,-0.0698,2.8973,3.7525,2.8973]))
         self.setJointVelocityLimit(vel_min=-np.array([2.1750,2.1750,2.1750,2.1750,2.61,2.61,2.61]),
                                    vel_max=np.array([2.1750,2.1750,2.1750,2.1750,2.61,2.61,2.61]))
-        self.setWeightMatrix(x_error_weight=np.diag(10*np.ones(6)),
-                             qd_weight=np.diag(0.0001*np.ones(7)),
-                             qdd_weight=np.diag(0.0001*np.ones(7)))
+        self.setWeightMatrix(x_error_weight=np.diag(100*np.ones(6)),
+                             qd_weight=np.diag(0.*np.ones(7)),
+                             qdd_weight=np.diag(0.*np.ones(7)))
         self.q_set_warm_start = np.zeros((DOF*self.N, 1))
 
     def setJointLimit(self, joint_lower_limit:np.array, joint_upper_limit:np.array):
@@ -62,6 +62,7 @@ class MPCsolver:
                 return 0
             else:
                 self.N = len(self.total_q_desired_set) - self.current_idx
+                self.q_set_warm_start = self.q_set_warm_start[:self.N*DOF]
 
         # q_dot = Sv * q + v
         Sv = np.kron(np.eye(self.N), np.eye(DOF)) + np.kron(np.eye(self.N, k=-1), -np.eye(DOF))
@@ -133,14 +134,17 @@ class MPCsolver:
         qp['h'] = H.sparsity()
         qp['a'] = A.sparsity()
         opts = {}
-        opts['printLevel'] = 'none'
+        # opts['printLevel'] = 'none'  # For qpoases
+        # opts['osqp'] = {'verbose':False} # For osqp
+        # opts['warm_start_primal'] = True
         
-        s = conic('solver', 'qpoases', qp, opts)
+        s = conic('solver', 'osqp', qp, opts)
         solver = s(h=H, g=g, a=A, lbx=x_lb, ubx=x_ub, lba=a_lb, uba=a_ub, x0=x0)
         sol = np.array(solver['x'])[:,0]
+        self.opt_q_set = sol.reshape(self.N, DOF)
         self.opt_q = sol[DOF:2*DOF]
         self.q_set_warm_start = np.concatenate([sol[DOF:], sol[DOF*(self.N-1):]]).reshape(DOF*self.N,1)
-        print(self.q_set_warm_start.shape)
+        # print(self.q_set_warm_start.shape)
         
     def getOptimalJoint(self)->np.array:
         # print("opt: {}".format(self.opt_q))
