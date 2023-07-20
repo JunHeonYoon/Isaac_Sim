@@ -15,14 +15,14 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   ```
 2. command
   ```
-  sudo ./python.sh /path_of_this_pkg/panda_controller/main.py
+  python /path_of_this_pkg/panda_controller/main.py
   ```
   
   ```
-  sudo ./python.sh /path_of_this_pkg/husky_controller/main.py
+  python /path_of_this_pkg/husky_controller/main.py
   ```
   
-  3. Requirement
+### Requirement
   - Conda environment
     ```
     conda env create -f isaac_sim.yaml
