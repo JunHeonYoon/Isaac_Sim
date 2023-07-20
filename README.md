@@ -22,7 +22,7 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
   python /path_of_this_pkg/husky_controller/main.py
   ```
   
-### Requirement
+## Requirement
   - Conda environment
     ```
     conda env create -f isaac_sim.yaml
