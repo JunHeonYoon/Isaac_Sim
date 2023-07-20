@@ -9,6 +9,8 @@ import math
 import time
 
 import os
+import osqp
+from scipy import sparse
 
 
 DOF = 7
@@ -26,8 +28,8 @@ class MPCsolver:
                            joint_upper_limit=np.array([2.8973,1.7628,2.8973,-0.0698,2.8973,3.7525,2.8973]))
         self.setJointVelocityLimit(vel_min=-np.array([2.1750,2.1750,2.1750,2.1750,2.61,2.61,2.61]),
                                    vel_max=np.array([2.1750,2.1750,2.1750,2.1750,2.61,2.61,2.61]))
-        self.setWeightMatrix(x_error_weight=np.diag(100*np.ones(6)),
-                             qd_weight=np.diag(0.*np.ones(7)),
+        self.setWeightMatrix(x_error_weight=np.diag(10*np.ones(6)),
+                             qd_weight=np.diag(0.0001*np.ones(7)),
                              qdd_weight=np.diag(0.*np.ones(7)))
         self.q_set_warm_start = np.zeros((DOF*self.N, 1))
 
@@ -119,33 +121,77 @@ class MPCsolver:
         self.v = v
         self.Sv = Sv
 
+    # def solveOCP(self):  
+    #     if self.current_idx >= len(self.total_q_desired_set) - 1:
+    #         return 0
+    #     H = DM(self.Q)
+    #     g = DM(self.p)
+    #     x_lb = DM(self.q_min)
+    #     x_ub = DM(self.q_max)
+    #     a_lb = DM(self.qd_min - self.v)
+    #     a_ub = DM(self.qd_max - self.v)
+    #     A = DM(self.Sv)
+    #     x0 = DM(self.q_set_warm_start)
+    #     qp = {}
+    #     qp['h'] = H.sparsity()
+    #     qp['a'] = A.sparsity()
+    #     opts = {}
+    #     # opts['printLevel'] = 'none'  # For qpoases
+    #     opts['osqp'] = {'verbose':False} # For osqp
+    #     # opts['warm_start_primal'] = True
+        
+    #     s = conic('solver', 'osqp', qp, opts)
+    #     solver = s(h=H, g=g, a=A, lbx=x_lb, ubx=x_ub, lba=a_lb, uba=a_ub, x0=x0)
+    #     sol = np.array(solver['x'])[:,0]
+    #     self.opt_q_set = sol.reshape(self.N, DOF)
+    #     self.opt_q = sol[DOF:2*DOF]
+    #     self.q_set_warm_start = np.concatenate([sol[DOF:], sol[DOF*(self.N-1):]]).reshape(DOF*self.N,1)
+    #     # print(self.q_set_warm_start.shape)
+        
     def solveOCP(self):  
         if self.current_idx >= len(self.total_q_desired_set) - 1:
             return 0
-        H = DM(self.Q)
-        g = DM(self.p)
-        x_lb = DM(self.q_min)
-        x_ub = DM(self.q_max)
-        a_lb = DM(self.qd_min - self.v)
-        a_ub = DM(self.qd_max - self.v)
-        A = DM(self.Sv)
-        x0 = DM(self.q_set_warm_start)
-        qp = {}
-        qp['h'] = H.sparsity()
-        qp['a'] = A.sparsity()
-        opts = {}
-        # opts['printLevel'] = 'none'  # For qpoases
-        # opts['osqp'] = {'verbose':False} # For osqp
-        # opts['warm_start_primal'] = True
-        
-        s = conic('solver', 'osqp', qp, opts)
-        solver = s(h=H, g=g, a=A, lbx=x_lb, ubx=x_ub, lba=a_lb, uba=a_ub, x0=x0)
-        sol = np.array(solver['x'])[:,0]
+        P = self.Q
+        q = self.p
+        x_lb = self.q_min
+        x_ub = self.q_max
+        a_lb = self.qd_min - self.v
+        a_ub = self.qd_max - self.v
+        A = self.Sv
+        x0 = self.q_set_warm_start
+
+        A = np.concatenate([np.eye(DOF*self.N), A], axis=0)
+        l = np.concatenate([x_lb, a_lb], axis=0)
+        u = np.concatenate([x_ub, a_ub], axis=0)
+
+        P = sparse.csc_matrix(P)
+        A = sparse.csc_matrix(A)
+
+        # print("P: {}".format(P.shape))
+        # print("q: {}".format(q.shape))
+        # print("A: {}".format(A.shape))
+        # print("l: {}".format(l.shape))
+        # print("u: {}".format(u.shape))
+
+        # if self.current_idx == 0:
+        self.prob = osqp.OSQP()
+        self.prob.setup(P, q, A, l, u, verbose = False)
+            
+        # else:
+        #     print("iter:{}".format(self.current_idx))
+        #     self.prob.update(q=q, l=l, u=u, Px=P, Ax=A)
+        self.prob.warm_start(x=x0)
+
+        res = self.prob.solve()
+        if res.info.status != 'solved':
+            raise ValueError('OSQP did not solve the problem!')
+        sol = np.array(res.x)
         self.opt_q_set = sol.reshape(self.N, DOF)
         self.opt_q = sol[DOF:2*DOF]
         self.q_set_warm_start = np.concatenate([sol[DOF:], sol[DOF*(self.N-1):]]).reshape(DOF*self.N,1)
         # print(self.q_set_warm_start.shape)
-        
+
+
     def getOptimalJoint(self)->np.array:
         # print("opt: {}".format(self.opt_q))
         return self.opt_q

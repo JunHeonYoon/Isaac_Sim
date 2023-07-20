@@ -41,7 +41,7 @@ class ArmController:
         self.initModel()
         self.initFile()
         self.TrajectoryPlanner = TrajectoryPlanner.TrajectoryPlanner(traj_type="circle", Hz=self.hz)
-        self.receding_horizon = 30
+        self.receding_horizon = 80
         self.MPCcontroller = MPC_solver.MPCsolver(self.hz, receding_horizon=self.receding_horizon)
         self.is_ros = is_ros
         if self.is_ros:
@@ -236,7 +236,7 @@ class ArmController:
                             pose.pose.orientation.z = 0
                             pose.pose.orientation.w = 1
                             self.ros_local_path.poses.append(pose)
-            print("{} tick Time:{}".format(self.tick - self.tick_init, toc-tic))
+            # print("{} tick Time:{}".format(self.tick - self.tick_init, toc-tic))
             self.q_desired = self.MPCcontroller.getOptimalJoint()
             self.q_before = self.q
             self.q_bbefore = self.q_before
