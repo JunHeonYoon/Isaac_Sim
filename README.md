@@ -1,8 +1,8 @@
 # Isaac_Sim
 
-## Obstacle avoidance based on JSDF
+## Model Predictive control with QP
 paper : 
-Koptev, Mikhail, Nadia Figueroa, and Aude Billard. "Neural Joint Space Implicit Signed Distance Functions for Reactive Robot Manipulator Control." IEEE Robotics and Automation Letters 8.2 (2022): 480-487.
+Lee, J., Seo, M., Bylard, A., Sun, R., & Sentis, L. (2023, May). Real-Time Model Predictive Control for Industrial Manipulators with Singularity-Tolerant Hierarchical Task Control. In 2023 IEEE International Conference on Robotics and Automation (ICRA) (pp. 12282-12288). IEEE.
 
 ## VScode
 If you code this pkg by vscode, follow the support :
@@ -53,10 +53,13 @@ https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/manual_standalone_py
     if self._gripper is not None:
             self._gripper.post_reset()
     ```
-  - Make IK shared file(.so) coded by C++
+  - Install franka-ros pkg: 
+    https://frankaemika.github.io/docs/installation_linux.html
+    
+  - Change Rviz pkg directory to your ros work-space
     ```
-      cd Issac_Sim/panda_controller/ik
-      mkdir build && cd build
-      cmake ..
-      make
+      cd Issac_Sim/panda_controller
+      mv panda_visualize /path_to_your_ros_ws/src
+      cd /path_to_your_ros_ws && catkin build
+      roslaunch panda_visualize display.launch
      ```
