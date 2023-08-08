@@ -194,35 +194,40 @@ grid on
 fileID = fopen(title+".txt",'w');
 
 if is_mobile  
-    fprintf(fileID,'%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n',[Step1_output'; Final_X(:, 2)'; Final_Y(:, 2)'; acc_X(:, 2)'; acc_Y(:,2)']);
+%     fprintf(fileID,'%.4f %.4f %.4f %.4f %.4f %.4f %.4f\n',[Step1_output'; Final_X(:, 2)'; Final_Y(:, 2)'; acc_X(:, 2)'; acc_Y(:,2)']);
+%     fprintf(fileID,'%.4f %.4f %.4f %.4f %.4f\n',[Step1_output'; Final_X(:, 2)'; Final_Y(:, 2)']);
 else
     fprintf(fileID,'%.4f %.4f %.4f %.4f %.4f\n',[Step1_output'; Final_X(:, 2)'; Final_Y(:, 2)']);
 end
 fclose(fileID);
 
 
-
-% len = length(Final);
-% x = Step1_output(:, 2);
-% y = Step1_output(:, 3);
-% x_dot = Final_X(:, 2);
-% y_dot = Final_Y(:, 2);
-% x_dotdot = acc_X(:,2);
-% y_dotdot = acc_Y(:,2);
-% 
-% th = zeros(len,1);
-% for i=2:len
-%     if abs(atan2(y_dot(i), x_dot(i))) < 0.0001
-%         th(i) =  th(i-1);
-%     else
-%         th(i) = atan2(y_dot(i), x_dot(i));
-%     end
-% end
-% w = zeros(len,1);
-% for i=1:len
-%     if((x_dot(i)^2 + y_dot(i)^2) > 0.001)
-%         w(i) = (x_dot(i)*y_dotdot(i)-y_dot(i)*x_dotdot(i))/(x_dot(i)^2 + y_dot(i)^2);
-%     end
-% end
-% vx = x_dot.*cos(th) + y_dot.*sin(th);
-% vy = -x_dot.*sin(th) + y_dot.*cos(th);
+if is_mobile
+    len = length(Final);
+    x = Step1_output(:, 2);
+    y = Step1_output(:, 3);
+    x_dot = Final_X(:, 2);
+    y_dot = Final_Y(:, 2);
+    x_dotdot = acc_X(:,2);
+    y_dotdot = acc_Y(:,2);
+    
+    th = zeros(len,1);
+    for i=2:len
+        if abs(atan2(y_dot(i), x_dot(i))) < 0.0001
+            th(i) =  th(i-1);
+        else
+            th(i) = atan2(y_dot(i), x_dot(i));
+        end
+    end
+    w = zeros(len,1);
+    for i=1:len
+        if((x_dot(i)^2 + y_dot(i)^2) > 0.001)
+            w(i) = (x_dot(i)*y_dotdot(i)-y_dot(i)*x_dotdot(i))/(x_dot(i)^2 + y_dot(i)^2);
+        end
+    end
+    vx = x_dot.*cos(th) + y_dot.*sin(th);
+    vy = -x_dot.*sin(th) + y_dot.*cos(th);
+    fileID = fopen(title+".txt",'w');
+    fprintf(fileID,'%.4f %.4f %.4f %.4f %.4f %.4f\n',[x'; y'; th'; vx'; vy'; w']);
+    fclose(fileID)
+end
