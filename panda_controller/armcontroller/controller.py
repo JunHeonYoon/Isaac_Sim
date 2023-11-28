@@ -113,8 +113,8 @@ class ArmController:
             print("\ngripper position : ")
             print(self.gripper_pose_desired)
             print(self.gripper_pose)
-            print("\nFT data from tips : ")
-            print(self.ft_data)
+            # print("\nFT data from tips : ")
+            # print(self.ft_data)
             
             print("---------------------------------")
             print("\n\n")

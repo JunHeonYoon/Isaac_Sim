@@ -2,6 +2,7 @@ from omni.isaac.kit import SimulationApp
 
 simulation_app = SimulationApp({"headless": False})
 
+
 from omni.isaac.core import World
 from omni.isaac.core.utils.stage import add_reference_to_stage
 import time
@@ -12,6 +13,9 @@ import sys
 import select
 import tty
 import termios
+import os
+import time
+
 
 
 def isData():
@@ -19,16 +23,19 @@ def isData():
 
 old_settings = termios.tcgetattr(sys.stdin)
 
+
 hz = 100
-pkg_path = "/home/yoonjunheon/Isaac_Sim/panda_controller"
+pkg_path = os.path.dirname(os.path.abspath(__file__))
 world = World(stage_units_in_meters=1.0)
 world.scene.add_default_ground_plane()
-add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand_rev.usd", prim_path="/World/panda")
+add_reference_to_stage(usd_path=pkg_path+"/model/panda_w_realsense.usd", prim_path="/World/panda")
+# add_reference_to_stage(usd_path=pkg_path+"/model/panda_arm_hand_rev.usd", prim_path="/World/panda")
 world.set_simulation_dt(1/hz, 1/hz) 
 ac = ArmController(hz, world, pkg_path)
-ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
-world.scene.add(ft)
+# ft = ArticulationView(prim_paths_expr="/World/panda", name="ft_viewer")
+# world.scene.add(ft)
 world.reset()
+
 
 is_simulation_run = True
 exit_flag = False
@@ -38,18 +45,18 @@ try:
     while (simulation_app.is_running() and (not exit_flag)):
         world.step(render=True)
         ac.UpdateData()
-        ac.setFTdata(ft._physics_view.get_force_sensor_forces()[0])
+        # ac.setFTdata(ft._physics_view.get_force_sensor_forces()[0])
         if(is_first):
+            is_first = False
             world.reset()
             ac.UpdateData()
-            ac.setFTdata(ft._physics_view.get_force_sensor_forces()[0])
+            # ac.setFTdata(ft._physics_view.get_force_sensor_forces()[0])
             print("Initial q : " )
             print(ac.getPosition()) 
-            is_first = False
             ac.initPosition()
+
         if isData():
             key = sys.stdin.read(1)
-
             if ac.isTeleop():
                 if key == 'w':
                     ac.setTeleMode("move_forward")
